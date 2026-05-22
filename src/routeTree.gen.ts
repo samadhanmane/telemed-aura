@@ -12,6 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PatientIndexRouteImport } from './routes/patient.index'
+import { Route as PatientReportsRouteImport } from './routes/patient.reports'
+import { Route as PatientPrescriptionsRouteImport } from './routes/patient.prescriptions'
+import { Route as PatientAppointmentsRouteImport } from './routes/patient.appointments'
+import { Route as PatientAiScannerRouteImport } from './routes/patient.ai-scanner'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -28,35 +33,105 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PatientIndexRoute = PatientIndexRouteImport.update({
+  id: '/patient/',
+  path: '/patient/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientReportsRoute = PatientReportsRouteImport.update({
+  id: '/patient/reports',
+  path: '/patient/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientPrescriptionsRoute = PatientPrescriptionsRouteImport.update({
+  id: '/patient/prescriptions',
+  path: '/patient/prescriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientAppointmentsRoute = PatientAppointmentsRouteImport.update({
+  id: '/patient/appointments',
+  path: '/patient/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientAiScannerRoute = PatientAiScannerRouteImport.update({
+  id: '/patient/ai-scanner',
+  path: '/patient/ai-scanner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/patient/ai-scanner': typeof PatientAiScannerRoute
+  '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/reports': typeof PatientReportsRoute
+  '/patient/': typeof PatientIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/patient/ai-scanner': typeof PatientAiScannerRoute
+  '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/reports': typeof PatientReportsRoute
+  '/patient': typeof PatientIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/patient/ai-scanner': typeof PatientAiScannerRoute
+  '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/prescriptions': typeof PatientPrescriptionsRoute
+  '/patient/reports': typeof PatientReportsRoute
+  '/patient/': typeof PatientIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/register'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/patient/ai-scanner'
+    | '/patient/appointments'
+    | '/patient/prescriptions'
+    | '/patient/reports'
+    | '/patient/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/register'
-  id: '__root__' | '/' | '/login' | '/register'
+  to:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/patient/ai-scanner'
+    | '/patient/appointments'
+    | '/patient/prescriptions'
+    | '/patient/reports'
+    | '/patient'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/register'
+    | '/patient/ai-scanner'
+    | '/patient/appointments'
+    | '/patient/prescriptions'
+    | '/patient/reports'
+    | '/patient/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  PatientAiScannerRoute: typeof PatientAiScannerRoute
+  PatientAppointmentsRoute: typeof PatientAppointmentsRoute
+  PatientPrescriptionsRoute: typeof PatientPrescriptionsRoute
+  PatientReportsRoute: typeof PatientReportsRoute
+  PatientIndexRoute: typeof PatientIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +157,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/patient/': {
+      id: '/patient/'
+      path: '/patient'
+      fullPath: '/patient/'
+      preLoaderRoute: typeof PatientIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patient/reports': {
+      id: '/patient/reports'
+      path: '/patient/reports'
+      fullPath: '/patient/reports'
+      preLoaderRoute: typeof PatientReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patient/prescriptions': {
+      id: '/patient/prescriptions'
+      path: '/patient/prescriptions'
+      fullPath: '/patient/prescriptions'
+      preLoaderRoute: typeof PatientPrescriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patient/appointments': {
+      id: '/patient/appointments'
+      path: '/patient/appointments'
+      fullPath: '/patient/appointments'
+      preLoaderRoute: typeof PatientAppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patient/ai-scanner': {
+      id: '/patient/ai-scanner'
+      path: '/patient/ai-scanner'
+      fullPath: '/patient/ai-scanner'
+      preLoaderRoute: typeof PatientAiScannerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  PatientAiScannerRoute: PatientAiScannerRoute,
+  PatientAppointmentsRoute: PatientAppointmentsRoute,
+  PatientPrescriptionsRoute: PatientPrescriptionsRoute,
+  PatientReportsRoute: PatientReportsRoute,
+  PatientIndexRoute: PatientIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
