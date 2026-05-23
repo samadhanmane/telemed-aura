@@ -1,22 +1,23 @@
-/** Must match backend APPOINTMENT_SLOT_TIMES */
-export const APPOINTMENT_SLOT_TIMES = [
-  "09:00 AM",
-  "09:30 AM",
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "12:30 PM",
-  "02:00 PM",
-  "02:30 PM",
-  "03:00 PM",
-  "03:30 PM",
-  "04:00 PM",
-  "04:30 PM",
-  "05:00 PM",
-  "05:30 PM",
-] as const;
+/** Must match backend shared/appointment-slots.ts */
+
+function formatSlotLabel(totalMinutes: number): string {
+  const hours24 = Math.floor(totalMinutes / 60);
+  const min = totalMinutes % 60;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  let h12 = hours24 % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(min).padStart(2, "0")} ${period}`;
+}
+
+export function buildAppointmentSlotTimes(intervalMinutes = 30): string[] {
+  const slots: string[] = [];
+  for (let m = 0; m < 24 * 60; m += intervalMinutes) {
+    slots.push(formatSlotLabel(m));
+  }
+  return slots;
+}
+
+export const APPOINTMENT_SLOT_TIMES = buildAppointmentSlotTimes();
 
 function parseSlotToMinutes(slot: string): number {
   const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -47,6 +48,26 @@ export function slotToLocalDate(date: string, slot: string): Date {
   const h = Math.floor(mins / 60);
   const min = mins % 60;
   return new Date(y, m - 1, d, h, min, 0, 0);
+}
+
+/** Hide slots that already started today (15 min buffer). */
+export function isSlotInPast(
+  date: string,
+  slot: string,
+  now = new Date(),
+  bufferMinutes = 15,
+): boolean {
+  if (isDateBeforeToday(date, now)) return true;
+  if (date > getTodayDateString(now)) return false;
+  const slotStart = slotToLocalDate(date, slot);
+  if (Number.isNaN(slotStart.getTime())) return true;
+  const cutoff = new Date(now.getTime() + bufferMinutes * 60 * 1000);
+  return slotStart < cutoff;
+}
+
+export function filterBookableSlots(date: string, slots: readonly string[], now = new Date()): string[] {
+  if (isDateBeforeToday(date, now)) return [];
+  return slots.filter((s) => !isSlotInPast(date, s, now));
 }
 
 /** Appointment slot start is in the past (for hiding join/book actions). */

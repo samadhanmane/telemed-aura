@@ -7,7 +7,6 @@ import {
   Pill,
   Upload,
   Stethoscope,
-  ExternalLink,
   Filter,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -404,20 +403,14 @@ function DocumentLibraryCard({ doc }: { doc: LibraryDocument }) {
       )}
 
       {resolveUploadUrl(doc.fileUrl) && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button variant="link" size="sm" className="h-auto p-0" asChild>
-            <a href={resolveUploadUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-1 h-3 w-3" /> Open
-            </a>
-          </Button>
-          <DownloadFileButton
-            fileUrl={doc.fileUrl}
-            fileName={doc.name}
-            label="Download"
-            variant="link"
-            className="h-auto p-0"
-          />
-        </div>
+        <DownloadFileButton
+          fileUrl={doc.fileUrl}
+          fileName={doc.name}
+          label="Download"
+          variant="outline"
+          size="sm"
+          className="mt-2"
+        />
       )}
     </Card>
   );

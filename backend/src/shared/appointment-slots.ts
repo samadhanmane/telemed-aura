@@ -1,24 +1,25 @@
-/** Standard consultation slots (must match patient booking UI). */
-export const APPOINTMENT_SLOT_TIMES = [
-  "09:00 AM",
-  "09:30 AM",
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "12:30 PM",
-  "02:00 PM",
-  "02:30 PM",
-  "03:00 PM",
-  "03:30 PM",
-  "04:00 PM",
-  "04:30 PM",
-  "05:00 PM",
-  "05:30 PM",
-] as const;
+/** Build 30-minute labels for a full day: 12:00 AM … 11:30 PM (48 slots). */
+function formatSlotLabel(totalMinutes: number): string {
+  const hours24 = Math.floor(totalMinutes / 60);
+  const min = totalMinutes % 60;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  let h12 = hours24 % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(min).padStart(2, "0")} ${period}`;
+}
 
-export type AppointmentSlotTime = (typeof APPOINTMENT_SLOT_TIMES)[number];
+export function buildAppointmentSlotTimes(intervalMinutes = 30): string[] {
+  const slots: string[] = [];
+  for (let m = 0; m < 24 * 60; m += intervalMinutes) {
+    slots.push(formatSlotLabel(m));
+  }
+  return slots;
+}
+
+/** Standard consultation slots (must match patient booking UI). */
+export const APPOINTMENT_SLOT_TIMES = buildAppointmentSlotTimes() as readonly string[];
+
+export type AppointmentSlotTime = string;
 
 export type DayKey = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
 
@@ -39,13 +40,13 @@ export const DAY_KEYS: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sa
 export const DEFAULT_DOCTOR_AVAILABILITY: DoctorAvailability = {
   acceptingAppointments: true,
   weekly: {
-    sun: { enabled: false, start: "09:00", end: "17:00" },
-    mon: { enabled: true, start: "09:00", end: "17:30" },
-    tue: { enabled: true, start: "09:00", end: "17:30" },
-    wed: { enabled: true, start: "09:00", end: "17:30" },
-    thu: { enabled: true, start: "09:00", end: "17:30" },
-    fri: { enabled: true, start: "09:00", end: "17:30" },
-    sat: { enabled: true, start: "09:00", end: "13:00" },
+    sun: { enabled: true, start: "00:00", end: "23:30" },
+    mon: { enabled: true, start: "00:00", end: "23:30" },
+    tue: { enabled: true, start: "00:00", end: "23:30" },
+    wed: { enabled: true, start: "00:00", end: "23:30" },
+    thu: { enabled: true, start: "00:00", end: "23:30" },
+    fri: { enabled: true, start: "00:00", end: "23:30" },
+    sat: { enabled: true, start: "00:00", end: "23:30" },
   },
   blockedDates: [],
 };
@@ -126,6 +127,26 @@ export function filterBookableSlots(
   return slots.filter((s) => !isSlotInPast(date, s, now));
 }
 
+/** Pre–24h default (upgrade so existing doctors get full-day 30-min slots). */
+const LEGACY_WEEKLY: Record<DayKey, DaySchedule> = {
+  sun: { enabled: false, start: "09:00", end: "17:00" },
+  mon: { enabled: true, start: "09:00", end: "17:30" },
+  tue: { enabled: true, start: "09:00", end: "17:30" },
+  wed: { enabled: true, start: "09:00", end: "17:30" },
+  thu: { enabled: true, start: "09:00", end: "17:30" },
+  fri: { enabled: true, start: "09:00", end: "17:30" },
+  sat: { enabled: true, start: "09:00", end: "13:00" },
+};
+
+function isLegacyNarrowWeekly(weekly: Record<DayKey, DaySchedule>): boolean {
+  return DAY_KEYS.every(
+    (k) =>
+      weekly[k].enabled === LEGACY_WEEKLY[k].enabled &&
+      weekly[k].start === LEGACY_WEEKLY[k].start &&
+      weekly[k].end === LEGACY_WEEKLY[k].end,
+  );
+}
+
 export function normalizeAvailability(raw?: Partial<DoctorAvailability> | null): DoctorAvailability {
   if (!raw?.weekly) return DEFAULT_DOCTOR_AVAILABILITY;
   const weekly = { ...DEFAULT_DOCTOR_AVAILABILITY.weekly };
@@ -136,6 +157,13 @@ export function normalizeAvailability(raw?: Partial<DoctorAvailability> | null):
         start: raw.weekly[key]!.start ?? weekly[key].start,
         end: raw.weekly[key]!.end ?? weekly[key].end,
       };
+    }
+  }
+  if (isLegacyNarrowWeekly(weekly)) {
+    for (const key of DAY_KEYS) {
+      if (weekly[key].enabled) {
+        weekly[key] = { enabled: true, start: "00:00", end: "23:30" };
+      }
     }
   }
   return {

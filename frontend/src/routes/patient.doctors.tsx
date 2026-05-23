@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { Search, Star, Video, Calendar, MapPin, Languages, Building2 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { patientNav } from "@/lib/nav";
@@ -30,6 +29,7 @@ import { fetchSpecialties } from "@/lib/api/auth";
 import { useBookAppointment } from "@/lib/api/hooks/use-appointments";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { getTodayDateString } from "@/lib/appointment-slots";
 
 export const Route = createFileRoute("/patient/doctors")({
   beforeLoad: () => requireRole("patient"),
@@ -39,12 +39,6 @@ export const Route = createFileRoute("/patient/doctors")({
   head: () => ({ meta: [{ title: "Find Doctors — Patient" }] }),
   component: DoctorsPage,
 });
-
-const CONSULT_TYPES = [
-  { id: "video", label: "Video consultation" },
-  { id: "follow-up", label: "Follow-up visit" },
-  { id: "emergency", label: "Emergency consultation" },
-];
 
 const LANGUAGES = ["All", "English", "Hindi", "Marathi"];
 
@@ -56,9 +50,8 @@ function DoctorsPage() {
   const [minRating, setMinRating] = useState(0);
   const [profile, setProfile] = useState<Doctor | null>(null);
   const [booking, setBooking] = useState<Doctor | null>(null);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [date, setDate] = useState(getTodayDateString);
   const [time, setTime] = useState("");
-  const [consultType, setConsultType] = useState("video");
   const book = useBookAppointment();
 
   const { data: specialties = [] } = useQuery({
@@ -71,11 +64,21 @@ function DoctorsPage() {
     queryFn: () => fetchDoctors(category === "all" ? undefined : category),
   });
 
-  const { data: slots = [] } = useQuery({
+  const { data: slots = [], isFetching: slotsLoading } = useQuery({
     queryKey: ["slots", booking?.id, date],
     queryFn: () => (booking ? fetchDoctorSlots(booking.id, date) : []),
     enabled: !!booking,
   });
+
+  useEffect(() => {
+    if (time && slots.length > 0 && !slots.includes(time)) setTime("");
+  }, [slots, time]);
+
+  useEffect(() => {
+    if (!booking) return;
+    setDate(getTodayDateString());
+    setTime("");
+  }, [booking?.id]);
 
   const filtered = useMemo(() => {
     return doctors.filter((d) => {
@@ -99,11 +102,7 @@ function DoctorsPage() {
         time,
         specialty: booking.specialty,
       });
-      toast.success(
-        consultType === "emergency"
-          ? "Emergency slot requested — doctor will confirm shortly"
-          : "Appointment booked! Check email for confirmation.",
-      );
+      toast.success("Video consultation booked! Check email for confirmation.");
       setBooking(null);
       setTime("");
     } catch (err) {
@@ -116,7 +115,7 @@ function DoctorsPage() {
       <div className="mx-auto max-w-7xl">
         <PageHeader
           title="Find your doctor"
-          description="Filter by specialty, language, rating, and book video or emergency consults."
+          description="Filter by specialty, language, rating, and book a video consultation."
         />
 
         <Card className="mt-6 rounded-2xl border-border/60 p-4 shadow-soft">
@@ -264,42 +263,40 @@ function DoctorsPage() {
             <DialogTitle>Book {booking?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Consultation type</Label>
-              <Select value={consultType} onValueChange={setConsultType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONSULT_TYPES.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm">
+              <Video className="h-4 w-4 text-primary" />
+              <span>
+                <span className="font-medium">Video consultation</span>
+                <span className="text-muted-foreground"> — secure online visit with your doctor</span>
+              </span>
+            </p>
             <div className="space-y-2">
               <Label>Date</Label>
               <Input
                 type="date"
                 value={date}
-                min={format(new Date(), "yyyy-MM-dd")}
-                onChange={(e) => setDate(e.target.value)}
+                min={getTodayDateString()}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setTime("");
+                }}
               />
             </div>
             <div className="space-y-2">
               <Label>Time slot</Label>
-              <Select value={time} onValueChange={setTime}>
+              <Select value={time} onValueChange={setTime} disabled={slotsLoading}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select time" />
+                  <SelectValue
+                    placeholder={
+                      slotsLoading
+                        ? "Loading slots…"
+                        : slots.length === 0
+                          ? "No slots on this date"
+                          : "Select time"
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent>
-                  {slots.length === 0 && (
-                    <p className="px-2 py-1 text-xs text-muted-foreground">
-                      No bookable slots — choose today or a future date with free times.
-                    </p>
-                  )}
+                <SelectContent className="max-h-64">
                   {slots.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
@@ -307,6 +304,11 @@ function DoctorsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {!slotsLoading && slots.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No bookable times left for this day — pick a later date or another doctor.
+                </p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               After the doctor confirms, both of you can join the video call at the date and time you
