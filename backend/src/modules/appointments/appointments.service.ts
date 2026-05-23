@@ -113,6 +113,15 @@ export async function updateStatus(
   userId: string,
   role: string,
   status: AppointmentStatus,
+  emrPayload?: {
+    conclusion?: string;
+    vitals?: {
+      bloodPressureSystolic?: number;
+      bloodPressureDiastolic?: number;
+      sugarLevel?: number;
+      oxygenLevel?: number;
+    };
+  },
 ) {
   const appointment = await Appointment.findById(appointmentId);
   if (!appointment) throw new Error("Appointment not found");
@@ -121,8 +130,23 @@ export async function updateStatus(
     throw new Error("Forbidden");
   }
 
-  appointment.status = status;
-  await appointment.save();
+  if (status === "completed") {
+    if (role !== "doctor") {
+      throw new Error("Only the doctor can mark a consultation as completed");
+    }
+    if (appointment.status !== "in_progress" && appointment.status !== "confirmed") {
+      throw new Error("Only an active consultation can be marked completed");
+    }
+    appointment.status = "completed";
+    await appointment.save();
+    const { finalizeConsultationEmr } = await import("../emr/emr.service.js");
+    await finalizeConsultationEmr(appointmentId, userId, emrPayload).catch((err) =>
+      console.error("[emr] consultation finalize:", err),
+    );
+  } else {
+    appointment.status = status;
+    await appointment.save();
+  }
 
   const patient = await User.findById(appointment.patientId);
   const doctor = await User.findById(appointment.doctorId);
@@ -170,6 +194,14 @@ export async function createVideoSession(
   if (role === "doctor" && !isDoctor) throw new Error("Not authorized for this consultation");
   if (!isPatient && !isDoctor) throw new Error("Forbidden");
 
+  if (appointment.status === "completed") {
+    throw new Error(
+      "This consultation is completed. The doctor must start a new appointment to video consult again.",
+    );
+  }
+  if (appointment.status === "cancelled") {
+    throw new Error("This appointment was cancelled.");
+  }
   if (!JOINABLE_STATUSES.includes(appointment.status as (typeof JOINABLE_STATUSES)[number])) {
     throw new Error("Consultation is not available. Appointment must be confirmed.");
   }
@@ -201,11 +233,12 @@ export async function createVideoSession(
   };
 }
 
-export async function endVideoSession(
+/** Disconnect from video only — appointment stays in_progress until doctor marks completed. */
+export async function leaveVideoSession(
   appointmentId: string,
   userId: string,
   role: string,
-  emrPayload?: {
+  draft?: {
     conclusion?: string;
     vitals?: {
       bloodPressureSystolic?: number;
@@ -223,22 +256,40 @@ export async function endVideoSession(
   if (role === "patient" && !isPatient) throw new Error("Forbidden");
   if (role === "doctor" && !isDoctor) throw new Error("Forbidden");
 
-  if (appointment.status === "in_progress") {
-    appointment.status = "completed";
-    await appointment.save();
-  }
-
-  if (role === "doctor") {
-    const { finalizeConsultationEmr } = await import("../emr/emr.service.js");
-    await finalizeConsultationEmr(appointmentId, userId, emrPayload).catch((err) =>
-      console.error("[emr] consultation finalize:", err),
-    );
+  if (role === "doctor" && draft && (draft.conclusion?.trim() || draft.vitals)) {
+    const { ClinicalNote } = await import("../../database/models/index.js");
+    const patientId = appointment.patientId;
+    const content = draft.conclusion?.trim();
+    if (content) {
+      await ClinicalNote.findOneAndUpdate(
+        { doctorId: userId, patientId },
+        { doctorId: userId, patientId, content, updatedAt: new Date() },
+        { upsert: true, new: true },
+      );
+    }
+    if (draft.vitals) {
+      const { recordVitals } = await import("../emr/emr.service.js");
+      await recordVitals(patientId.toString(), {
+        source: "manual",
+        ...draft.vitals,
+      }).catch(() => undefined);
+    }
   }
 
   const patient = await User.findById(appointment.patientId);
   const doctor = await User.findById(appointment.doctorId);
   const profile = doctor ? await DoctorProfile.findOne({ userId: doctor._id }) : null;
   return formatAppointment(appointment, patient!, doctor!, profile);
+}
+
+/** @deprecated Use leaveVideoSession — kept as alias for older clients. */
+export async function endVideoSession(
+  appointmentId: string,
+  userId: string,
+  role: string,
+  emrPayload?: Parameters<typeof leaveVideoSession>[3],
+) {
+  return leaveVideoSession(appointmentId, userId, role, emrPayload);
 }
 
 /** Doctor schedules a follow-up with a patient they have consulted before. */

@@ -96,7 +96,7 @@ export function registerSignalingHandlers(io: Server) {
 
     socket.on(E.END_CALL, (payload: { roomId: string }) => {
       if (!currentRoom || payload.roomId !== session.appointmentId) return;
-      socket.to(currentRoom).emit(E.CALL_ENDED, { endedBy: session.role, name: session.name });
+      socket.to(currentRoom).emit(E.PEER_LEFT, { role: session.role, name: session.name });
       cleanup(socket, currentRoom);
       currentRoom = null;
     });

@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import type { ApiAppointment } from "@/lib/api/appointments";
 import { apiClient } from "@/lib/api/client";
-import { createVideoSession, endVideoSession } from "@/lib/api/appointments";
+import { createVideoSession, leaveVideoSession } from "@/lib/api/appointments";
+import { fetchAppointment } from "@/lib/api/clinical";
 import { env } from "@/lib/env";
 import {
   applyVideoTier,
@@ -553,11 +554,6 @@ export function useVideoCall(appointmentId: string, role: "patient" | "doctor") 
 
       socket.on(E.PEER_LEFT, () => setStatus("waiting"));
 
-      socket.on(E.CALL_ENDED, () => {
-        setStatus("ended");
-        cleanup();
-      });
-
       socket.on(E.FOLLOW_UP_SCHEDULED, (data: { appointment: ApiAppointment }) => {
         if (data?.appointment) {
           setScheduledFollowUp(data.appointment);
@@ -588,8 +584,8 @@ export function useVideoCall(appointmentId: string, role: "patient" | "doctor") 
     }
   }, [appointmentId, cleanup, emitMediaState, startAdaptiveMonitoring, stopAdaptiveMonitoring]);
 
-  const endCall = useCallback(
-    async (emrPayload?: {
+  const leaveCall = useCallback(
+    async (draft?: {
       conclusion?: string;
       vitals?: {
         bloodPressureSystolic?: number;
@@ -598,17 +594,44 @@ export function useVideoCall(appointmentId: string, role: "patient" | "doctor") 
         oxygenLevel?: number;
       };
     }) => {
-      socketRef.current?.emit(E.END_CALL, { roomId: roomIdRef.current });
       cleanup();
-      setStatus("ended");
+      setStatus("idle");
       try {
-        await endVideoSession(appointmentId, emrPayload);
+        await leaveVideoSession(appointmentId, draft);
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId] });
       } catch {
-        /* session may already be ended */
+        /* leave is best-effort */
       }
     },
-    [appointmentId, cleanup],
+    [appointmentId, cleanup, queryClient],
   );
+
+  useEffect(() => {
+    const inSession =
+      status === "joining" ||
+      status === "connecting" ||
+      status === "waiting" ||
+      status === "live";
+    if (!inSession) return;
+
+    const checkCompleted = async () => {
+      try {
+        const appt = await fetchAppointment(appointmentId);
+        if (appt.status === "completed") {
+          cleanup();
+          setStatus("ended");
+          queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        }
+      } catch {
+        /* polling optional */
+      }
+    };
+
+    void checkCompleted();
+    const id = window.setInterval(checkCompleted, 12_000);
+    return () => window.clearInterval(id);
+  }, [appointmentId, status, cleanup, queryClient]);
 
   const toggleAudio = useCallback(() => {
     const next = !audioOn;
@@ -679,7 +702,8 @@ export function useVideoCall(appointmentId: string, role: "patient" | "doctor") 
     downgradeCount,
     ruralOptimized,
     joinCall,
-    endCall,
+    leaveCall,
+    endCall: leaveCall,
     toggleAudio,
     toggleVideo,
     switchToAudioOnly,

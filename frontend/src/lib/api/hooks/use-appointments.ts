@@ -24,8 +24,22 @@ export function useBookAppointment() {
 export function useUpdateAppointmentStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
-      updateAppointmentStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      conclusion,
+      vitals,
+    }: {
+      id: string;
+      status: AppointmentStatus;
+      conclusion?: string;
+      vitals?: {
+        bloodPressureSystolic?: number;
+        bloodPressureDiastolic?: number;
+        sugarLevel?: number;
+        oxygenLevel?: number;
+      };
+    }) => updateAppointmentStatus(id, status, { conclusion, vitals }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }

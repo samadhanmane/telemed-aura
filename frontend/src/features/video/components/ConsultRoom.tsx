@@ -47,7 +47,7 @@ export function ConsultRoom({
     peerVideoOn,
     appointmentInfo,
     joinCall,
-    endCall,
+    leaveCall,
     toggleAudio,
     toggleVideo,
   } = useVideoCall(appointmentId, role);
@@ -69,8 +69,8 @@ export function ConsultRoom({
                 ? "Call ended"
                 : error;
 
-  const handleEndCall = async () => {
-    await endCall();
+  const handleLeaveCall = async () => {
+    await leaveCall();
     navigate({ to: exitTo });
   };
 
@@ -103,7 +103,7 @@ export function ConsultRoom({
             <h2 className="mt-4 text-lg font-semibold">Join secure consultation</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Only you and your {role === "patient" ? "doctor" : "patient"} can enter this
-              encrypted session. Camera and microphone will be requested.
+              encrypted session. You can leave and rejoin until the doctor marks the visit completed.
             </p>
             <Button
               className="mt-6 w-full bg-gradient-primary text-primary-foreground"
@@ -192,19 +192,22 @@ export function ConsultRoom({
                   aria-label="End call"
                 >
                   <PhoneOff className="mr-2 h-5 w-5" />
-                  End call
+                  Leave call
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>End consultation?</AlertDialogTitle>
+                  <AlertDialogTitle>Leave video call?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will disconnect the video call and mark the session as completed.
+                    The appointment stays in progress.{" "}
+                    {role === "patient"
+                      ? "Rejoin anytime until your doctor completes the visit."
+                      : "Mark completed from your appointments page when finished."}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Stay in call</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleEndCall}>End call</AlertDialogAction>
+                  <AlertDialogAction onClick={handleLeaveCall}>Leave call</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -214,7 +217,7 @@ export function ConsultRoom({
 
       {status === "ended" && (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <p className="text-sm text-muted-foreground">Consultation ended securely.</p>
+          <p className="text-sm text-muted-foreground">This consultation has been completed.</p>
           <Button asChild>
             <Link to={exitTo}>Return to appointments</Link>
           </Button>

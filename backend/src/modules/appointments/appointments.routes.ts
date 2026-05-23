@@ -10,5 +10,6 @@ appointmentRoutes.get("/", appointmentsController.list);
 appointmentRoutes.get("/:id", appointmentsController.getOne);
 appointmentRoutes.post("/", requireRole("patient"), appointmentsController.create);
 appointmentRoutes.patch("/:id", requireRole("doctor", "admin"), appointmentsController.update);
+appointmentRoutes.post("/:id/video-session/leave", appointmentsController.leaveVideoSession);
 appointmentRoutes.post("/:id/video-session/end", appointmentsController.endVideoSession);
 appointmentRoutes.post("/:id/video-session", appointmentsController.videoSession);

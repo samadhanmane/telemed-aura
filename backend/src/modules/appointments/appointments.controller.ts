@@ -45,13 +45,14 @@ export async function list(req: AuthRequest, res: Response) {
 
 export async function update(req: AuthRequest, res: Response) {
   try {
-    const { status } = req.body;
+    const { status, conclusion, vitals } = req.body;
     if (!status) return res.status(400).json({ error: "status required" });
     const appointment = await appointmentsService.updateStatus(
       String(req.params.id),
       req.user!.userId,
       req.user!.role,
       status,
+      status === "completed" ? { conclusion, vitals } : undefined,
     );
     return res.json({ appointment });
   } catch (e) {
@@ -74,9 +75,9 @@ export async function videoSession(req: AuthRequest, res: Response) {
   }
 }
 
-export async function endVideoSession(req: AuthRequest, res: Response) {
+export async function leaveVideoSession(req: AuthRequest, res: Response) {
   try {
-    const appointment = await appointmentsService.endVideoSession(
+    const appointment = await appointmentsService.leaveVideoSession(
       String(req.params.id),
       req.user!.userId,
       req.user!.role,
@@ -84,7 +85,11 @@ export async function endVideoSession(req: AuthRequest, res: Response) {
     );
     return res.json({ appointment });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not end session";
+    const msg = e instanceof Error ? e.message : "Could not leave session";
     return res.status(400).json({ error: msg });
   }
+}
+
+export async function endVideoSession(req: AuthRequest, res: Response) {
+  return leaveVideoSession(req, res);
 }

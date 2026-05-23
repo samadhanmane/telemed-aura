@@ -65,7 +65,7 @@ export function PatientConsultRoom({
     downgradeCount,
     ruralOptimized,
     joinCall,
-    endCall,
+    leaveCall,
     toggleAudio,
     toggleVideo,
     switchToAudioOnly,
@@ -101,11 +101,11 @@ export function PatientConsultRoom({
             : status === "live"
               ? "Secure consultation live"
               : status === "ended"
-                ? "Call ended"
+                ? "Consultation completed"
                 : error;
 
-  const handleEndCall = async () => {
-    await endCall();
+  const handleLeaveCall = async () => {
+    await leaveCall();
     navigate({ to: exitTo });
   };
 
@@ -174,8 +174,8 @@ export function PatientConsultRoom({
               <Shield className="mx-auto h-12 w-12 text-primary" />
               <h2 className="mt-4 text-lg font-semibold">Join secure consultation</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Optimized for rural networks: starts at 360p/240p, adapts quality automatically,
-                and can switch to audio-only if the connection is weak.
+                Optimized for rural networks. You can leave and rejoin anytime until your doctor
+                marks this visit completed on their appointments page.
               </p>
               <Button
                 className="mt-6 w-full bg-gradient-primary text-primary-foreground"
@@ -262,20 +262,20 @@ export function PatientConsultRoom({
                 <AlertDialogTrigger asChild>
                   <Button size="lg" variant="destructive" className="rounded-full px-8">
                     <PhoneOff className="mr-2 h-5 w-5" />
-                    End call
+                    Leave call
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>End consultation?</AlertDialogTitle>
+                    <AlertDialogTitle>Leave video call?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Your visit summary will appear in your health record after the doctor completes
-                      their notes.
+                      The visit is still in progress. You can return and rejoin until your doctor
+                      marks the appointment completed.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Stay in call</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleEndCall}>End call</AlertDialogAction>
+                    <AlertDialogAction onClick={handleLeaveCall}>Leave call</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -285,7 +285,10 @@ export function PatientConsultRoom({
 
         {status === "ended" && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-            <p className="text-sm text-muted-foreground">Consultation ended securely.</p>
+            <p className="text-sm text-muted-foreground">
+              Your doctor marked this consultation completed. Your visit summary is in your health
+              record.
+            </p>
             <Button asChild>
               <Link to="/patient/emr">View health record</Link>
             </Button>

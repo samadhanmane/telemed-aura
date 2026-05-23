@@ -75,7 +75,7 @@ export function DoctorConsultRoom({
     downgradeCount,
     ruralOptimized,
     joinCall,
-    endCall,
+    leaveCall,
     toggleAudio,
     toggleVideo,
     switchToAudioOnly,
@@ -111,11 +111,11 @@ export function DoctorConsultRoom({
             : status === "live"
               ? "Secure consultation live"
               : status === "ended"
-                ? "Call ended"
+                ? "Consultation completed"
                 : error;
 
-  const handleEndCall = async () => {
-    await endCall({
+  const handleLeaveCall = async () => {
+    await leaveCall({
       conclusion: conclusion.trim() || undefined,
       vitals: {
         bloodPressureSystolic: endVitals.bloodPressureSystolic
@@ -197,7 +197,8 @@ export function DoctorConsultRoom({
               <Shield className="mx-auto h-12 w-12 text-primary" />
               <h2 className="mt-4 text-lg font-semibold">Join secure consultation</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Rural-optimized video: adaptive 240p–360p, auto audio fallback on weak networks.
+                Rural-optimized video: adaptive 240p–360p, auto audio fallback on weak networks. You
+                can leave and rejoin until you mark the visit completed on your appointments page.
               </p>
               <Button
                 className="mt-6 w-full bg-gradient-primary text-primary-foreground"
@@ -274,14 +275,16 @@ export function DoctorConsultRoom({
                 <AlertDialogTrigger asChild>
                   <Button size="lg" variant="destructive" className="rounded-full px-8">
                     <PhoneOff className="mr-2 h-5 w-5" />
-                    End call
+                    Leave call
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>End consultation?</AlertDialogTitle>
+                    <AlertDialogTitle>Leave video call?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Consultation conclusion and vitals are saved to the patient EMR immediately.
+                      The visit stays in progress. Notes below are saved as a draft. Mark the
+                      appointment completed from your appointments page when the consultation is
+                      finished.
                     </AlertDialogDescription>
                     <div className="space-y-3 py-2 text-left">
                       <div>
@@ -335,7 +338,7 @@ export function DoctorConsultRoom({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Stay in call</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleEndCall}>End call</AlertDialogAction>
+                    <AlertDialogAction onClick={handleLeaveCall}>Leave call</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -345,7 +348,9 @@ export function DoctorConsultRoom({
 
         {status === "ended" && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-            <p className="text-sm text-muted-foreground">Consultation ended. Remarks are saved to the patient chart.</p>
+            <p className="text-sm text-muted-foreground">
+              This consultation is completed and saved to the patient chart.
+            </p>
             <Button asChild>
               <Link to={exitTo}>Return to appointments</Link>
             </Button>
