@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { DEFAULT_SPECIALTIES } from "@/lib/specialties";
 
 export type AuthUser = {
   id: string;
@@ -55,9 +56,14 @@ export async function updateAuthProfile(body: { name?: string; phone?: string })
   return data.user;
 }
 
-export async function fetchSpecialties() {
-  const { data } = await apiClient.get<{ specialties: Specialty[] }>("/auth/specialties");
-  return data.specialties;
+export async function fetchSpecialties(): Promise<Specialty[]> {
+  try {
+    const { data } = await apiClient.get<{ specialties: Specialty[] }>("/auth/specialties");
+    if (data.specialties?.length) return data.specialties;
+  } catch {
+    /* API down or misconfigured VITE_API_URL — use bundled list for registration UI */
+  }
+  return [...DEFAULT_SPECIALTIES];
 }
 
 export async function requestForgotPasswordOtp(email: string) {

@@ -77,6 +77,15 @@
       "admin": "Admin"
     }
   },
+  "specialtyCategories": {
+    "primary": "Primary & general",
+    "mental": "Mental health",
+    "skin": "Skin & dermatology",
+    "heart": "Heart & circulation",
+    "children": "Women & children",
+    "bones": "Bones & rehabilitation",
+    "specialist": "Other specialists"
+  },
   "auth": {
     "welcomeBack": "Welcome back",
     "loginSubtitle": "Patients and approved doctors sign in here.",
@@ -109,8 +118,14 @@
     "phone": "Phone",
     "location": "Village / location (optional)",
     "locationPlaceholder": "e.g. Ratnagiri, Maharashtra",
-    "specialty": "Specialty / category",
+    "specialty": "Medical specialty",
     "specialtyPlaceholder": "Psychology, Dermatology, Physiotherapy…",
+    "specialtyCategoryNav": "Specialty categories",
+    "specialtySearchPlaceholder": "Search specialties…",
+    "specialtyPickOne": "Choose your specialty",
+    "specialtySearchResults": "{{count}} matches",
+    "specialtyNoMatch": "No specialty matches your search.",
+    "specialtySelected": "Selected",
     "licenseNumber": "Medical license no.",
     "experienceYears": "Experience (years)",
     "bio": "Bio (optional)",

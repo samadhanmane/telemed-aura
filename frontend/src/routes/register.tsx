@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { APP_NAME, pageTitle } from "@/lib/brand";
@@ -12,14 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { SpecialtyCategoryPicker } from "@/components/auth/SpecialtyCategoryPicker";
 import { toast } from "sonner";
 import { register as registerApi, registerDoctor, fetchSpecialties, type Specialty } from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/auth-store";
@@ -55,7 +49,7 @@ const doctorSchema = z.object({
   phone: z.string().optional(),
   specialty: z.string().min(1, "Select your specialty"),
   licenseNumber: z.string().min(3, "Medical license is required"),
-  experienceYears: z.coerce.number().min(0, "Enter years of experience"),
+  experienceYears: z.number().min(0, "Enter years of experience"),
   bio: z.string().optional(),
 });
 
@@ -81,7 +75,7 @@ function RegisterPage() {
   const [doctorSubmitted, setDoctorSubmitted] = useState(false);
 
   useEffect(() => {
-    fetchSpecialties().then(setSpecialties).catch(() => {});
+    fetchSpecialties().then(setSpecialties);
   }, []);
 
   const patientForm = useForm({
@@ -170,7 +164,7 @@ function RegisterPage() {
         <div className="absolute right-4 top-4">
           <LanguageSwitcher />
         </div>
-        <div className="w-full max-w-lg">
+        <div className={cn("w-full", role === "doctor" && step === "details" ? "max-w-2xl" : "max-w-lg")}>
           <Link to="/" className="flex items-center gap-2">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary text-primary-foreground">
               <HeartPulse className="h-5 w-5" />
@@ -251,25 +245,15 @@ function RegisterPage() {
                 </Card>
               ) : (
                 <form onSubmit={onSubmitDoctor} className="mt-6 space-y-4">
-                  <AccountFields form={doctorForm} t={t} />
-                  <div className="space-y-2">
-                    <Label>{t("auth.specialty")}</Label>
-                    <Select onValueChange={(v) => doctorForm.setValue("specialty", v, { shouldValidate: true })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("auth.specialtyPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {specialties.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {doctorForm.formState.errors.specialty && (
-                      <p className="text-xs text-destructive">{doctorForm.formState.errors.specialty.message}</p>
-                    )}
-                  </div>
+                  <AccountFields form={doctorForm as unknown as AccountFieldsForm} t={t} />
+                  <SpecialtyCategoryPicker
+                    specialties={specialties}
+                    value={doctorForm.watch("specialty")}
+                    onChange={(id) =>
+                      doctorForm.setValue("specialty", id, { shouldValidate: true, shouldDirty: true })
+                    }
+                    error={doctorForm.formState.errors.specialty?.message}
+                  />
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>{t("auth.licenseNumber")}</Label>
@@ -280,7 +264,10 @@ function RegisterPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>{t("auth.experienceYears")}</Label>
-                      <Input type="number" {...doctorForm.register("experienceYears")} />
+                      <Input
+                        type="number"
+                        {...doctorForm.register("experienceYears", { valueAsNumber: true })}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -320,11 +307,20 @@ function RegisterPage() {
   );
 }
 
+type AccountFormValues = {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+};
+
+type AccountFieldsForm = Pick<UseFormReturn<AccountFormValues>, "register" | "formState">;
+
 function AccountFields({
   form,
   t,
 }: {
-  form: ReturnType<typeof useForm>;
+  form: AccountFieldsForm;
   t: (key: string) => string;
 }) {
   const errors = form.formState.errors as Record<string, { message?: string } | undefined>;

@@ -77,6 +77,15 @@
       "admin": "एडमिन"
     }
   },
+  "specialtyCategories": {
+    "primary": "प्राथमिक एवं सामान्य",
+    "mental": "मानसिक स्वास्थ्य",
+    "skin": "त्वचा एवं त्वचा रोग",
+    "heart": "हृदय एवं रक्त संचार",
+    "children": "महिला एवं बाल",
+    "bones": "हड्डी एवं पुनर्वास",
+    "specialist": "अन्य विशेषज्ञ"
+  },
   "auth": {
     "welcomeBack": "वापसी पर स्वागत है",
     "loginSubtitle": "मरीज़ और स्वीकृत डॉक्टर यहाँ साइन इन करें।",
@@ -109,8 +118,14 @@
     "phone": "फ़ोन",
     "location": "गाँव / स्थान (वैकल्पिक)",
     "locationPlaceholder": "जैसे रत्नागिरी, महाराष्ट्र",
-    "specialty": "विशेषता / श्रेणी",
+    "specialty": "चिकित्सा विशेषता",
     "specialtyPlaceholder": "मनोविज्ञान, त्वचा, फिजियोथेरेपी…",
+    "specialtyCategoryNav": "विशेषता श्रेणियाँ",
+    "specialtySearchPlaceholder": "विशेषता खोजें…",
+    "specialtyPickOne": "अपनी विशेषता चुनें",
+    "specialtySearchResults": "{{count}} परिणाम",
+    "specialtyNoMatch": "कोई विशेषता नहीं मिली।",
+    "specialtySelected": "चयनित",
     "licenseNumber": "चिकित्सा लाइसेंस नं.",
     "experienceYears": "अनुभव (वर्ष)",
     "bio": "संक्षिप्त परिचय (वैकल्पिक)",

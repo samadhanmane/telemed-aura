@@ -2,8 +2,14 @@ import axios, { isAxiosError } from "axios";
 import { env } from "@/lib/env";
 import { getAcceptLanguageHeader, getApiLanguage } from "@/lib/i18n-language";
 
+if (!env.apiUrl && import.meta.env.DEV) {
+  console.error(
+    "[api] No API base URL — set VITE_API_URL in frontend/.env (see .env.example).",
+  );
+}
+
 export const apiClient = axios.create({
-  baseURL: env.apiUrl,
+  baseURL: env.apiUrl || undefined,
   timeout: 120000,
   headers: { "Content-Type": "application/json" },
 });
