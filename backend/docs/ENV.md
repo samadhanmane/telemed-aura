@@ -22,6 +22,40 @@ MONGODB_DB_NAME=netmetaura
 
 The app connects to database **`netmetaura`** on startup (`src/database/connection.ts`).
 
+### `querySrv ECONNREFUSED` on another laptop
+
+This means **DNS could not resolve** the Atlas SRV host (`_mongodb._tcp.cluster….mongodb.net`). It is not fixed by `npm install` or `npm audit fix`.
+
+**Option A — Atlas standard URI (best on restricted networks)**
+
+1. [MongoDB Atlas](https://cloud.mongodb.com) → your cluster → **Connect** → **Drivers**.
+2. Copy the connection string and choose **Standard** (not SRV), e.g.  
+   `mongodb://USER:PASS@ac-xxxxx.mongodb.net:27017/?retryWrites=true&w=majority`
+3. In `backend/.env`:
+   ```bash
+   MONGODB_URI=mongodb://USER:PASS@ac-xxxxx.mongodb.net:27017/?retryWrites=true&w=majority
+   MONGODB_DB_NAME=netmetaura
+   ```
+4. **Network Access** → add the laptop’s public IP (or `0.0.0.0/0` for dev only).
+
+**Option B — Local MongoDB (no Atlas)**
+
+1. Install [MongoDB Community](https://www.mongodb.com/try/download/community) or run:  
+   `docker run -d -p 27017:27017 --name telemed-mongo mongo:7`
+2. In `backend/.env`:
+   ```bash
+   MONGODB_URI=mongodb://127.0.0.1:27017
+   MONGODB_DB_NAME=netmetaura
+   ```
+3. Seed admin if needed: `npm run seed` (from `backend/`).
+
+**Option C — Fix DNS on Windows**
+
+- Use DNS `8.8.8.8` or `1.1.1.1`, disable VPN, retry.
+- Test: `nslookup _mongodb._tcp.cluster0.k9oca.mongodb.net`
+
+Copy `backend/.env` from a working machine (never commit it). Ensure `JWT_SECRET`, `GEMINI_API_KEY`, and Cloudinary keys are set for full features.
+
 ## Local development
 
 ```bash
