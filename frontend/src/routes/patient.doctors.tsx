@@ -34,7 +34,11 @@ import {
   EmptyList,
   ErrorList,
 } from "@/components/common/ListStates";
-import { getTodayDateString } from "@/lib/appointment-slots";
+import {
+  getTodayDateString,
+  normalizeSlotTimeForStorage,
+  parseTimeToMinutes,
+} from "@/lib/appointment-slots";
 
 export const Route = createFileRoute("/patient/doctors")({
   beforeLoad: () => requireRole("patient"),
@@ -81,8 +85,9 @@ function DoctorsPage() {
   });
 
   useEffect(() => {
-    if (time && slots.length > 0 && !slots.includes(time)) setTime("");
-  }, [slots, time]);
+    if (slotsLoading || !time) return;
+    if (slots.length > 0 && !slots.includes(time)) setTime("");
+  }, [slots, time, slotsLoading]);
 
   useEffect(() => {
     if (!booking) return;
@@ -108,7 +113,7 @@ function DoctorsPage() {
       toast.error("Please select a doctor");
       return;
     }
-    if (!time) {
+    if (!time || parseTimeToMinutes(time) < 0) {
       toast.error("Please select a time slot");
       return;
     }
@@ -116,7 +121,7 @@ function DoctorsPage() {
       await book.mutateAsync({
         doctorId: booking.id,
         date,
-        time,
+        time: normalizeSlotTimeForStorage(time),
         specialty: booking.specialty,
       });
       toast.success("Appointment booked successfully");

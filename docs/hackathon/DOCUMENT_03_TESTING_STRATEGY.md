@@ -1,19 +1,19 @@
 # DOCUMENT 3 — Testing Strategy (15 Marks)
 
-**Project:** Telemed Aura  
-**Related:** `docs/MANUAL_TEST_CASES.md` (400+ detailed cases for QA execution)
+**Project:** Telemed Aura — AI-Enabled Telehealth & Patient Data System  
+**Companion:** `DOCUMENT_04_TEST_CASES.md` (executable cases), `docs/MANUAL_TEST_CASES.md` (extended QA catalog)
 
 ---
 
 ## 1. Testing Objectives
 
-1. Verify **role-based access** (patient, doctor, admin) across all API routes and UI routes.
-2. Validate **end-to-end clinical workflows**: register → book → consult → complete → review.
-3. Confirm **AI pipelines** produce consistent severity (rules-first) and safe disclaimers.
-4. Ensure **video consultation** supports leave/rejoin and doctor-only completion.
-5. Test **security controls**: JWT expiry, unauthorized access, file URL allowlist.
-6. Assess **usability** for rural scenarios: Hindi UI, low-bandwidth video modes.
-7. Document defects with reproducible steps and severity.
+1. Verify **role-based access** (patient, doctor, admin) on UI routes and API endpoints.
+2. Validate **end-to-end clinical flows**: register → book → consult → complete → review.
+3. Confirm **AI pipelines** apply rules-first severity and safe patient-facing language.
+4. Test **video lifecycle**: join only when confirmed/in_progress; leave/rejoin; doctor-only complete.
+5. Verify **standard API contract** (`success`, `message`, `data`) and friendly error messages.
+6. Assess **security**: JWT, IDOR, file download allowlist, rate limits, mongo sanitize.
+7. Support **hackathon demonstration** with repeatable manual scripts.
 
 ---
 
@@ -21,13 +21,11 @@
 
 | Principle | Application |
 |-----------|-------------|
-| Risk-based | Prioritize auth, EMR access, AI severity, video session authorization |
-| Black-box + gray-box | UI/API tests without source; developers use logs and MongoDB for gray-box |
-| Manual-first | No automated test suite in repo (`package.json` has no Jest/Vitest/Playwright) |
-| Environment parity | Local: MongoDB + `backend/.env` + `frontend/.env`; staging: Render + Vercel |
-| Data isolation | Separate test DB (`MONGODB_DB_NAME=telemed_test`) recommended |
-
-**Current state (from codebase):** Testing is **primarily manual** via browser and API clients (curl/Postman). Lint (`eslint`) provides static checks only.
+| **Risk-based** | Prioritize auth, EMR access, appointments, AI severity, video authorization |
+| **Black-box + gray-box** | UI tests without code; developers use MongoDB Compass + API logs |
+| **Manual-first** | No Jest/Vitest/Playwright in `package.json` today |
+| **Implementation-based** | Cases map to real routes in `backend/src/modules/*/routes.ts` |
+| **Data isolation** | Use `MONGODB_DB_NAME=telemed_test` for QA |
 
 ---
 
@@ -35,214 +33,166 @@
 
 ### 3.1 Unit Testing
 
-| Scope | Examples | Status |
-|-------|----------|--------|
-| Pure functions | `buildAppointmentSlotTimes`, `filterBookableSlots`, `symptom-triage.rules` | Recommended; not fully automated in repo |
-| Validators | Zod schemas in controllers | Manual via invalid payloads |
-| Severity engine | `severity-engine.ts`, `remark-severity.rules.ts` | Manual matrix of lab values |
-
-**Recommendation:** Add Vitest for `backend/services/ai/rules/*` and `frontend/src/lib/appointment-slots.ts`.
+| Target | Examples | Status |
+|--------|----------|--------|
+| Pure functions | `buildAppointmentSlotTimes`, `filterBookableSlots`, `symptom-triage.rules` | Recommended (not automated) |
+| Zod schemas | `auth.schemas.ts`, `appointment.schemas.ts` | Manual invalid payloads |
+| Severity engine | `severity-engine.ts`, lab parser | Matrix of lab inputs |
 
 ### 3.2 Integration Testing
 
-| Scope | Examples |
-|-------|----------|
-| API + DB | `POST /appointments` creates doc; unique index prevents double-book |
-| Auth middleware | Missing token → 401; wrong role → 403 |
-| Upload + Cloudinary | Doctor register with certificate |
-| AI pipeline | Upload PDF → `MedicalReport` with `severity` field |
-| Email | Booking triggers Nodemailer (mock SMTP in dev) |
+| Target | Examples |
+|--------|----------|
+| API + DB | `POST /appointments` + unique index conflict |
+| Auth | JWT middleware, expired token → 401 |
+| Upload | Doctor cert → Cloudinary; report → pipeline |
+| Email | Booking notification (if SMTP configured) |
 
-**Tools:** Postman/Newman, or `supertest` (future).
+**Tool:** Postman, curl, or browser DevTools Network tab.
 
 ### 3.3 System Testing
 
-Full user journeys in browser:
+Full journeys in browser (Chrome/Edge):
 
-1. Patient books slot → doctor confirms → both join video → doctor marks completed → patient rates.
-2. Patient symptom scan → critical alert → doctor triage accept.
-3. Admin approves doctor → doctor appears in patient directory.
-
-**Environment:** Chrome/Edge latest; test on throttled network (DevTools) for video.
+1. Patient registers → books → doctor confirms → video → doctor completes → patient rates.
+2. Patient symptom scan (High) → critical alert → doctor triage.
+3. Admin approves doctor → doctor appears in directory.
 
 ### 3.4 Acceptance Testing
 
-| Stakeholder | Criteria |
-|-------------|----------|
-| Patient | Can book, consult, view EMR, download reports |
-| Doctor | Can manage schedule, consult, prescribe, review reports |
-| Admin | Can approve/reject doctors |
-| Hackathon judges | Objectives in Document 1 demonstrable in live demo |
+| Stakeholder | Pass criteria |
+|-------------|---------------|
+| Patient | Book, consult, EMR, reports, Doc Assistant |
+| Doctor | Availability, consult, prescribe, review reports |
+| Admin | Approve/reject doctors, view monitoring |
+| Judges | All rubric documents demonstrable live |
 
 ---
 
 ## 4. Testing Types
 
-### 4.1 Functional Testing
+### 4.1 Functional
+All modules in Document 2; every `*.routes.ts` endpoint.
 
-- All routes in `backend/src/api/routes/index.ts`
-- All TanStack routes under `frontend/src/routes/`
-- Form validation on register, booking, symptom scan
+### 4.2 Non-Functional
+- Performance: AI upload 30–120s; list APIs &lt; 2s typical.
+- Reliability: `GET /health` when DB disconnected → `degraded`.
 
-### 4.2 Non-Functional Testing
+### 4.3 Security
+- JWT tampering, role escalation, IDOR on appointments/EMR.
+- `GET /files/download` blocks external URLs.
+- Auth rate limit (`authRateLimiter`: 30 / 15 min).
+- `express-mongo-sanitize` on JSON body.
 
-| Type | Focus |
-|------|-------|
-| Performance | API response &lt; 2s for lists; AI uploads may take 30–120s |
-| Reliability | `/health` when DB down shows `degraded` |
-| Compatibility | Modern evergreen browsers; WebRTC requires HTTPS in prod |
+### 4.4 Performance
+- Throttle network (Slow 3G) during video.
+- Rapid `POST /ai/symptom-scan` vs `AI_GEMINI_RPM`.
 
-### 4.3 Security Testing
-
-- JWT tampering, expired token, role escalation
-- IDOR: patient A cannot `GET /emr/patients/:otherPatientId`
-- File download only allows Cloudinary/upload paths
-- CORS: reject unknown origins
-- Helmet headers present
-
-### 4.4 Performance Testing
-
-- Concurrent symptom scans (Gemini RPM limit `AI_GEMINI_RPM`)
-- Large PDF upload (near 20MB limit)
-- Video on **Slow 3G** throttling — verify audio-only fallback
-
-### 4.5 Usability Testing
-
-- Hindi language switch persists
-- Mobile viewport for patient booking
-- Error toasts on API failure
-- Empty states on appointments/reports
+### 4.5 Usability
+- Hindi switch; empty states on doctors list; toast on API errors.
 
 ### 4.6 API Testing
-
-- Contract: JSON shapes from controllers
-- Status codes: 400 validation, 401 auth, 403 role, 404 not found, 409 conflict (slot taken)
+- Validate `{ success: true, message, data }` on auth, appointments, clinical, ai, emr, dashboard.
+- Legacy plain JSON only on `/video/ice-servers`, `/video/media-config`, `/health`.
 
 ### 4.7 Database Testing
-
-- Unique index on `doctorId+date+time`
-- Referential integrity via Mongoose `ref`
-- Cascade behavior on user delete (manual verification)
+- Unique index `doctorId+date+time` prevents double booking.
+- Doctor `verificationStatus` gates listing.
 
 ### 4.8 AI Model Testing
-
-| Area | Method |
-|------|--------|
-| Symptom triage | Fixed inputs: mild headache vs chest pain + dyspnea |
-| Severity rules | Known lab outliers → expect High/Critical |
-| Vision skip | Text-only PDF should not always invoke vision |
-| RAG | Question answerable only from uploaded doc |
-| Fallback | `GEMINI_API_KEY` unset → graceful error message |
-| i18n | `Accept-Language: hi` → Hindi answer where implemented |
+- Mild vs emergency symptom text → severity tiers.
+- PDF with known abnormal labs → High/Critical from rules.
+- `POST /ai/document-chat` answers only from uploaded doc.
+- Missing `GEMINI_API_KEY` → graceful error message.
 
 ---
 
 ## 5. Testing Tools Used
 
-| Tool | Category | Usage in Project |
-|------|----------|------------------|
-| **Manual browser** | E2E | Primary QA |
-| **Chrome DevTools** | Network/perf | Throttle bandwidth, inspect WebRTC |
-| **Postman / curl** | API | Endpoint verification |
-| **MongoDB Compass** | DB | Inspect documents after tests |
-| **ESLint** | Static analysis | `npm run lint` frontend/backend |
-| **Prettier** | Formatting | `npm run format` (frontend) |
-| **tsx** | Dev runtime | Backend hot reload |
-| **Vite** | Dev server | Frontend HMR |
-| **Git** | Version control | Regression tracking |
+| Tool | Category | Usage |
+|------|----------|-------|
+| Chrome DevTools | E2E / network | Throttle, inspect API responses |
+| Postman / curl | API | Contract and auth header tests |
+| MongoDB Compass | DB | Verify documents after actions |
+| ESLint | Static | `npm run lint` (frontend/backend) |
+| Sonner (UI) | UX | Toast verification |
+| Git | VCS | Branch `testcase` for QA snapshot |
 
-**Not present in repo:** Jest, Vitest, Cypress, Playwright, k6, OWASP ZAP.
+**Not in repo:** Jest, Playwright, k6, OWASP ZAP.
 
 ---
 
 ## 6. Testing Workflow
 
 ```
-1. Plan        → Select module + test cases from DOCUMENT_04 / MANUAL_TEST_CASES.md
-2. Setup       → Seed DB, configure .env, approve test doctor
-3. Execute     → Record steps, screenshots, API responses
-4. Log defect  → ID, severity, repro steps, expected vs actual
-5. Fix         → Developer patch + code review
-6. Retest      → Same case + regression smoke on auth/booking/video
-7. Sign-off    → Module owner marks PASS in test matrix
+1. Environment   → backend/.env + frontend/.env (VITE_API_URL)
+2. Seed users    → 1 admin, 2 doctors (1 pending), 2 patients
+3. Execute cases → DOCUMENT_04 table (mark Actual Result / Status)
+4. Log defects   → ID, severity, steps, API response body
+5. Fix & retest  → Same case + smoke on auth + booking
+6. Sign-off      → Module owner approves PASS
 ```
 
 ---
 
 ## 7. Bug Handling Process
 
-| Severity | Definition | SLA (suggested) |
-|----------|------------|-----------------|
-| S1 Critical | Data leak, auth bypass, consult cannot complete | Fix immediately |
-| S2 High | Booking broken, AI wrong severity on emergency | Same day |
-| S3 Medium | UI glitch, non-blocking i18n gap | Next sprint |
-| S4 Low | Cosmetic, copy | Backlog |
+| Severity | Definition | Action |
+|----------|------------|--------|
+| S1 | Auth bypass, data leak, consult broken | Block release |
+| S2 | Booking/AI wrong severity on emergency | Fix same day |
+| S3 | UI/i18n gap | Next iteration |
+| S4 | Cosmetic | Backlog |
 
-**Template:**
-
-- **ID:** BUG-###
-- **Module:** e.g. M4 Video
-- **Steps to reproduce**
-- **Expected / Actual**
-- **Environment:** OS, browser, API URL
-- **Logs:** API console, browser console
-- **Status:** Open → In Progress → Fixed → Verified
+**Template:** BUG-### | Module | Steps | Expected | Actual | Env | Screenshot/JSON
 
 ---
 
 ## 8. Expected Results
 
-| Area | Pass Criteria |
-|------|---------------|
-| Auth | Valid login returns JWT; pending doctor cannot practice |
-| Booking | No double-book; past slots hidden |
-| Video | Both peers connect; leave allows rejoin; complete locks session |
-| AI | Severity from rules; disclaimers visible; no diagnosis claims as final |
-| EMR | Patient sees own data only |
-| Files | Download works for owned Cloudinary URLs |
-| i18n | Hindi strings render on switched locale |
+| Area | Pass |
+|------|------|
+| Auth | Zod validation messages; pending doctor cannot practice |
+| API | `success: false` never exposes Mongo stack traces |
+| Booking | No double-book; past slots unavailable |
+| Video | Rejoin works until doctor completes |
+| AI | Severity from rules; disclaimers visible |
+| EMR | Doctor sees only linked patients |
 
 ---
 
 ## 9. Edge Case Testing Strategy
 
-| Domain | Edge Cases |
-|--------|------------|
-| Slots | Midnight boundary, blocked date, full day booked |
+| Domain | Cases |
+|--------|-------|
+| Slots | Midnight, blocked date, full day, today past times |
 | Auth | Duplicate email, weak password, expired OTP |
-| Video | One peer disconnects mid-call; doctor completes while patient in lobby |
-| AI | Empty symptom text, corrupted PDF, image-only scan |
-| EMR | New patient with no history |
-| Admin | Reject then re-apply doctor |
+| Video | Disconnect mid-call; complete while patient in lobby |
+| AI | Empty symptoms, corrupt PDF, 20MB boundary |
+| Triage | Two doctors accept same critical case |
+| i18n | Switch to Hindi mid-session |
 
 ---
 
-## 10. Professional Testing Report (Sample Summary)
+## 10. Sample Test Execution Report
 
-**Test Cycle:** Hackathon QA — Telemed Aura v0.1.0  
-**Date:** 2026-05-22  
-**Tester:** QA Team  
-**Build:** `main` branch, local + staging
+**Cycle:** Hackathon QA — Telemed Aura  
+**Branch:** `testcase`  
+**Build:** commit `c8bf318` or later
 
-| Module | Cases Executed | Pass | Fail | Blocked |
-|--------|----------------|------|------|---------|
-| Auth | 24 | 22 | 2 | 0 |
-| Appointments | 18 | 17 | 1 | 0 |
-| Video | 12 | 11 | 1 | 0 |
-| AI Symptom | 10 | 10 | 0 | 0 |
-| Reports/Clinical | 15 | 14 | 1 | 0 |
-| EMR | 8 | 8 | 0 | 0 |
-| Admin | 6 | 6 | 0 | 0 |
-| **Total** | **93** | **88** | **5** | **0** |
+| Module | Planned | Pass | Fail | Blocked |
+|--------|---------|------|------|---------|
+| Auth & validation | 12 | — | — | — |
+| Doctors & slots | 8 | — | — | — |
+| Appointments | 10 | — | — | — |
+| Video | 8 | — | — | — |
+| AI / Reports | 12 | — | — | — |
+| EMR / Clinical | 10 | — | — | — |
+| Admin / Dashboard | 8 | — | — | — |
+| Security / API | 10 | — | — | — |
+| **Total** | **78** | — | — | — |
 
-**Pass rate:** 94.6%
-
-**Critical findings (example placeholders for live run):**
-
-1. Missing `VITE_API_URL` → frontend calls wrong port (documented fix in `env.ts` fallback).
-2. Cloudinary unset → doctor registration 400 (expected; env required).
-
-**Recommendation:** Add Vitest unit tests for slot/triage rules; Playwright smoke for login → book → consult path.
+*Fill Pass/Fail during live QA.*
 
 ---
 

@@ -8,6 +8,7 @@ import {
   isDateBeforeToday,
   isSlotWithinDaySchedule,
   normalizeAvailability,
+  normalizeSlotTimeForStorage,
   type DoctorAvailability,
 } from "../../shared/appointment-slots.js";
 
@@ -44,10 +45,19 @@ export async function getAvailableSlots(doctorId: string, date: string) {
     status: { $nin: ["cancelled"] },
   }).select("time");
 
-  const taken = new Set(booked.map((b) => b.time));
-  const open = APPOINTMENT_SLOT_TIMES.filter(
-    (t) => !taken.has(t) && isSlotWithinDaySchedule(t, day),
+  const taken = new Set(
+    booked.map((b) => {
+      try {
+        return normalizeSlotTimeForStorage(b.time);
+      } catch {
+        return b.time;
+      }
+    }),
   );
+  const open = APPOINTMENT_SLOT_TIMES.filter((t) => {
+    const t24 = normalizeSlotTimeForStorage(t);
+    return !taken.has(t24) && isSlotWithinDaySchedule(t, day);
+  });
   return filterBookableSlots(date, open);
 }
 
@@ -72,8 +82,10 @@ export async function getNextFreeSlot(
 }
 
 export async function assertSlotAvailable(doctorId: string, date: string, time: string) {
+  const normalized = normalizeSlotTimeForStorage(time);
   const slots = await getAvailableSlots(doctorId, date);
-  if (!slots.includes(time)) {
+  const available24 = new Set(slots.map((s) => normalizeSlotTimeForStorage(s)));
+  if (!available24.has(normalized)) {
     throw new Error(
       slots.length === 0
         ? "No free slots on this date — pick another day or update availability"

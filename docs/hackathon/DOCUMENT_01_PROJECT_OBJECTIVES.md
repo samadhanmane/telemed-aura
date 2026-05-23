@@ -2,131 +2,139 @@
 
 **Project Title:** AI-Enabled Telehealth & Patient Data System  
 **Product Name:** Telemed Aura  
-**Repository:** Monorepo (`frontend/` + `backend/`)  
-**Version:** 0.1.0 (implementation snapshot)
+**Repository:** `samadhanmane/telemed-aura` (branch: `testcase` includes latest validation/docs)  
+**Version:** 0.1.0
 
 ---
 
 ## 1. Project Overview
 
-Telemed Aura is a full-stack telehealth platform designed for **rural and semi-urban healthcare access**. It connects **patients**, **verified doctors**, and a **platform administrator** through a single web application. Patients can register, run an **AI-assisted symptom scanner**, upload **medical reports and prescriptions** for analysis, book **video consultations** on 30-minute slots, and maintain a longitudinal **Electronic Medical Record (EMR)**. Doctors manage availability, conduct secure video visits, review AI-assisted reports, prescribe digitally, and complete consultations. Admins verify doctor credentials before they appear in the patient directory.
+Telemed Aura is a full-stack **AI-enabled telehealth and patient data platform** for connecting rural and semi-urban patients with verified doctors. The system is implemented as a monorepo:
 
-The system is implemented as:
+| Layer | Path | Stack |
+|-------|------|-------|
+| Frontend | `frontend/` | React 19, Vite 7, TanStack Router/Start, Tailwind 4, shadcn/ui, Zustand, React Query, Socket.IO client, i18next (en/hi) |
+| Backend | `backend/` | Node.js, Express 4, TypeScript, Mongoose, JWT, Socket.IO signaling, Zod validation |
+| AI services | `backend/services/ai/` | Gemini, Tesseract, pdf-parse, rule-based severity engines |
+| Data | MongoDB | 16 Mongoose collections (User, Appointment, MedicalReport, etc.) |
+| Files | Cloudinary | Reports, certificates, prescriptions |
+| Email | Nodemailer | Booking, OTP, AI alerts |
 
-- **Frontend:** React 19, TanStack Router/Start, Vite, Tailwind CSS, shadcn/ui, Socket.IO client, i18next (English/Hindi)
-- **Backend:** Express 4, MongoDB (Mongoose), JWT authentication, Socket.IO signaling (same port as API), modular services under `backend/src/modules/`
-- **AI layer:** Google Gemini (vision, synthesis, RAG chat), rule-based severity engines, Tesseract OCR, pdf-parse
-- **Cloud:** Cloudinary (file storage), SMTP/Nodemailer (email), optional TURN/STUN for WebRTC
+**Roles:** `patient`, `doctor`, `admin`  
+**API base:** `/api/v1`  
+**Health:** `GET /health`
 
-**Assumption:** Marketing figures on the landing page (e.g. “120k+ consultations”) are illustrative UI copy, not live production metrics unless backed by analytics DB.
+**Assumption:** Marketing statistics on the landing page (`index.tsx`: “120k+ consultations”) are illustrative UI copy unless backed by live analytics APIs.
 
 ---
 
 ## 2. Problem Statement
 
-Rural populations often face:
+Rural healthcare in India and similar regions faces:
 
-1. **Distance and cost** — Limited access to specialists; travel time and expense for in-person visits.
-2. **Low bandwidth** — Video tools designed for urban fiber fail on weak mobile networks.
-3. **Fragmented records** — Paper prescriptions and scattered lab reports are hard to share with a new clinician.
-4. **Delayed triage** — Mild and severe symptoms are not consistently prioritized before a human review.
-5. **Trust and verification** — Unverified online “doctors” create safety and regulatory risk.
+1. **Access** — Long travel to specialists; limited local clinicians.
+2. **Connectivity** — Poor mobile bandwidth unsuitable for default HD video apps.
+3. **Records** — Paper labs and prescriptions are lost between visits.
+4. **Triage delay** — Urgent vs mild symptoms are not prioritized before human review.
+5. **Trust** — Unverified online providers create safety risk.
 
-Telemed Aura addresses these by combining **verified providers**, **low-bandwidth video**, **centralized EMR**, **rules + AI screening**, and **admin-gated doctor onboarding**.
+Telemed Aura addresses these with **verified doctors**, **adaptive video**, **centralized EMR**, **rules-first AI triage**, and **admin-gated onboarding**.
 
 ---
 
 ## 3. Main Objectives
 
-| # | Objective | Priority |
-|---|-----------|----------|
-| O1 | Enable secure role-based telehealth for patients, doctors, and admins | Critical |
-| O2 | Provide AI-assisted symptom screening with calibrated severity (not diagnosis) | Critical |
-| O3 | Digitize patient health data (EMR, reports, prescriptions, vitals, consultations) | Critical |
-| O4 | Support end-to-end video consultation with rural network optimizations | Critical |
-| O5 | Automate doctor verification and platform governance | High |
-| O6 | Support multilingual access (English/Hindi) for wider adoption | Medium |
-| O7 | Notify users of appointments and critical alerts | High |
+| ID | Objective | Evidence in codebase |
+|----|-----------|----------------------|
+| O1 | Secure multi-role telehealth | JWT (`auth.middleware.ts`), RBAC on all protected routes |
+| O2 | AI-assisted screening (not diagnosis) | `POST /ai/symptom-scan`, `symptom-triage.rules.ts` |
+| O3 | Digitized longitudinal health data | EMR (`emr.service.ts`), reports, vitals, consultations |
+| O4 | Video consultation for remote care | WebRTC + Socket.IO `/signaling`, `useVideoCall.ts` |
+| O5 | Doctor verification & governance | `verificationStatus`, admin approve/reject |
+| O6 | Multilingual access | `react-i18next`, `Accept-Language`, AI `translator.ts` |
+| O7 | User notifications | `Notification` model, email templates |
+| O8 | Production-grade errors & validation | `AppError`, Zod schemas, `{ success, message, data }` API format |
 
 ---
 
 ## 4. Functional Objectives
 
-| ID | Functional Objective | Implementation Evidence |
-|----|----------------------|-------------------------|
-| FO-1 | Patient self-registration and login | `POST /auth/register`, `POST /auth/login`, `/register`, `/login` |
-| FO-2 | Doctor registration with certificate upload and admin approval | `POST /auth/register/doctor`, `DoctorProfile.verificationStatus`, admin approve/reject |
-| FO-3 | Password reset via email OTP | `POST /auth/forgot-password/*`, `/forgot-password` |
-| FO-4 | Browse and book doctors by specialty, date, 30-min slot | `GET /doctors`, `GET /doctors/:id/slots`, `POST /appointments` |
-| FO-5 | Appointment lifecycle: pending → confirmed → in_progress → completed | `PATCH /appointments/:id`, doctor UI actions |
-| FO-6 | WebRTC video consult with leave/rejoin until doctor completes visit | Signaling `/signaling`, `leaveVideoSession`, `updateStatus(completed)` |
-| FO-7 | AI symptom scan with severity tier and health score | `POST /ai/symptom-scan`, `SymptomScan` model |
-| FO-8 | Upload reports/prescriptions; OCR + rules + optional Gemini | `POST /clinical/reports`, `POST /ai/documents/upload`, pipelines in `backend/services/ai/` |
-| FO-9 | RAG document Q&A (Doc Assistant chat) | `POST /ai/document-chat`, `DocumentChunk` embeddings |
-| FO-10 | Patient EMR view; doctor EMR for consulted patients only | `/emr/*`, `/patient/emr`, `/doctor/patients/:id/emr` |
-| FO-11 | Doctor availability (weekly schedule, blocked dates) | `PUT /doctors/me/availability`, slot generation in `appointment-slots.ts` |
-| FO-12 | Critical-care triage queue for high-risk patients | `clinical/triage-queue`, `CriticalCareAlert` model |
-| FO-13 | Post-consultation reviews | `POST /reviews` after completed appointment |
-| FO-14 | Secure file download (reports, certificates) | `GET /files/download` with URL allowlist |
-| FO-15 | In-app notifications | `Notification` model, `/notifications` |
-| FO-16 | Dashboards and analytics per role | `/dashboard/patient|doctor|admin`, chart routes |
-| FO-17 | Admin user/doctor/patient oversight and AI monitoring | `/admin/*`, `/dashboard/admin/ai-monitoring` |
+| ID | Objective | Implementation |
+|----|-----------|----------------|
+| FO-1 | Patient registration/login | `POST /auth/register`, `POST /auth/login`, `/register`, `/login` |
+| FO-2 | Doctor registration + certificate | `POST /auth/register/doctor`, Cloudinary upload, pending status |
+| FO-3 | Password reset (OTP) | `POST /auth/forgot-password/*`, `PasswordResetOtp` model |
+| FO-4 | Browse/book doctors (video) | `GET /doctors`, `GET /doctors/:id/slots`, `POST /appointments` |
+| FO-5 | Appointment lifecycle | `pending` → `confirmed` → `in_progress` → `completed` / `cancelled` |
+| FO-6 | Video consult with leave/rejoin | `video-session`, `leaveVideoSession`; complete via doctor only |
+| FO-7 | AI symptom scanner | `POST /ai/symptom-scan`, `SymptomScan` |
+| FO-8 | Medical report upload + AI pipeline | `POST /clinical/reports` (multipart), 6-layer pipeline |
+| FO-9 | Doc Assistant (RAG chat) | `POST /ai/documents/upload`, `POST /ai/document-chat` |
+| FO-10 | Digital prescriptions | Doctor: `POST /clinical/patients/:id/prescriptions`; patient lists |
+| FO-11 | Patient EMR + doctor view | `/emr/me`, `/emr/patients/:patientId` (consult history required) |
+| FO-12 | Critical care / triage | Triage queue, critical alerts, urgent booking |
+| FO-13 | Post-consult reviews | `POST /reviews` (completed appointments only) |
+| FO-14 | Secure file download | `GET /files/download` (Cloudinary allowlist) |
+| FO-15 | Dashboards per role | `/dashboard/patient|doctor|admin` |
+| FO-16 | Admin doctor approval | `PATCH /dashboard/admin/doctors/:id/approve|reject` |
+| FO-17 | Doctor availability (30-min slots) | `PUT /doctors/me/availability`, `buildAppointmentSlotTimes()` |
+| FO-18 | Standard API error responses | `sendSuccess` / `sendError`, frontend `getApiErrorMessage()` |
 
-**Not implemented (explicit):** Online payments (Stripe/Razorpay), native mobile apps, FHIR/HL7 interoperability, formal HIPAA certification workflow.
+**Not implemented:** Payment gateway (Stripe/Razorpay); `Appointment.fee` is `0`. `appointments/booking` routes return **501 Not implemented**.
 
 ---
 
 ## 5. Non-Functional Objectives
 
-| ID | Non-Functional Objective | Target / Approach |
-|----|--------------------------|-------------------|
-| NFO-1 | **Security** | JWT Bearer auth, bcrypt passwords, role guards, Helmet, CORS allowlist |
-| NFO-2 | **Performance** | Adaptive video tiers (240p–360p, audio fallback), Gemini rate limiting (`AI_GEMINI_RPM`) |
-| NFO-3 | **Scalability** | Stateless API + MongoDB; Cloudinary for blobs; horizontal scaling possible behind load balancer |
-| NFO-4 | **Usability** | Responsive UI, loading/empty states, toast errors, specialty sidebar on doctor signup |
-| NFO-5 | **Reliability** | `/health` endpoint with DB status; graceful AI fallbacks when Gemini unavailable |
-| NFO-6 | **Maintainability** | Modular monorepo: `modules/*`, shared `services/ai/*`, typed TypeScript |
-| NFO-7 | **i18n** | `react-i18next`, `Accept-Language` / locale on API for localized AI answers |
-| NFO-8 | **Deployability** | Env-driven config (`VITE_*`, `backend/.env`); Vercel (frontend) + Render (API) per `.env.example` |
+| ID | Objective | Implementation |
+|----|-----------|----------------|
+| NFO-1 | Security | Helmet, CORS allowlist, bcrypt, JWT, `express-mongo-sanitize`, rate limits |
+| NFO-2 | Performance | Adaptive video tiers (`adaptive-media.ts`), Gemini cost guards |
+| NFO-3 | Reliability | `/health` with DB status; AI fallbacks when Gemini unavailable |
+| NFO-4 | Usability | Sonner toasts, empty/loading/error states (`ListStates.tsx`) |
+| NFO-5 | Maintainability | Modular `modules/*`, shared `services/ai/*` |
+| NFO-6 | i18n | English + Hindi UI and localized AI answers |
+| NFO-7 | Deployability | `frontend/.env.example`, Vercel + Render documented |
 
 ---
 
 ## 6. Alignment with Project Goals
 
-| Project Goal | How Objectives Support It |
-|--------------|---------------------------|
-| Rural telehealth access | Video + audio-only fallback, 30-min slots across 24h (within doctor availability) |
-| AI-enabled care | Symptom scanner, report pipeline, Doc Assistant RAG—not replacing clinicians |
-| Patient data system | MongoDB models for EMR, reports, scans, vitals, consultations, chunks |
-| Trust & safety | Admin doctor verification; rules-first severity; doctor report review |
-| Hackathon demo readiness | Clear role separation, dashboards, end-to-end book → consult → complete flow |
+| Hackathon goal | How objectives deliver |
+|----------------|------------------------|
+| AI-enabled telehealth | Symptom scan, report pipeline, Doc Assistant RAG |
+| Patient data system | EMR, reports, vitals, snapshots, consultation records |
+| Rural focus | Hindi UI, low-bandwidth video, 30-min slots across availability window |
+| Trust & safety | Admin verification; rules-first severity; doctor report review |
 
 ---
 
 ## 7. Justification of Each Objective
 
-**O1 — Secure telehealth:** JWT (`jsonwebtoken`) and middleware (`requireAuth`, `requireRole`) enforce that patients cannot approve doctors or access other patients’ EMR. Without this, the platform is not deployable for health data.
+**O1 — Security:** Health data requires JWT and role guards; generic login errors prevent account enumeration (`Invalid email or password`).
 
-**O2 — AI symptom screening:** `symptom-analyzer.ts` and `symptom-triage.rules.ts` apply research-calibrated tiers (Low/Moderate/High/Critical) using patient text only, reducing false “Critical” on mild isolated symptoms—a documented fix in the codebase.
+**O2 — AI screening:** Rules in `symptom-triage.rules.ts` calibrate severity; Gemini enriches narrative without overriding rule-based `severity`.
 
-**O3 — EMR:** Consolidates `MedicalReport`, `SymptomScan`, `ConsultationRecord`, `Prescription`, `VitalRecord` into patient-facing and doctor-facing views via `emr.service.ts`.
+**O3 — EMR:** `buildPatientEmrData()` aggregates consultations, prescriptions, reports, scans for continuity of care.
 
-**O4 — Video:** `useVideoCall.ts` + `adaptive-media.ts` implement tiered bitrate and manual camera-off behavior; signaling on same server as API simplifies deployment.
+**O4 — Video:** Signaling on same port as API (`backend/src/index.ts`) simplifies deployment; adaptive bitrate supports rural networks.
 
-**O5 — Doctor verification:** `registerDoctor` stores certificate on Cloudinary; `verificationStatus: pending|approved|rejected` gates login (`REGISTRATION_PENDING` / `REGISTRATION_REJECTED`).
+**O5 — Verification:** Doctors cannot practice until `verificationStatus === "approved"`; login returns `REGISTRATION_PENDING` code.
 
-**O6 — i18n:** Hindi UI and localized AI answers (`translator.ts`, RAG pipeline) support rural India language needs.
+**O6 — i18n:** Rural users benefit from Hindi UI (`hi.json`) and localized AI via `localeFromRequest()`.
 
-**O7 — Notifications:** Email on booking/status change (`mail.service.ts`) plus in-app `Notification` documents improve engagement.
+**O7 — Notifications:** `Notification.insertMany` on booking; email via `mail.service.ts` when SMTP configured.
+
+**O8 — Error handling:** Standard `{ success, message, errors[] }` improves demo quality and QA traceability.
 
 ---
 
 ## 8. Expected Outcomes
 
-1. **Patients** book video visits, upload documents, receive AI-guided screening summaries, and retain a portable health record.
-2. **Doctors** receive triage-ordered worklists, conduct consultations, finalize EMR entries on completion, and review AI drafts of reports.
-3. **Admins** maintain platform quality by approving doctors and monitoring AI-flagged cases.
-4. **System** stores structured health artifacts in MongoDB and files in Cloudinary for audit and continuity.
+1. Patients book video visits, run symptom scans, upload reports, and maintain a portable EMR.
+2. Doctors manage schedules, conduct consultations, prescribe, and review AI-assisted reports.
+3. Admins approve doctors and monitor AI-flagged activity.
+4. Platform stores structured artifacts in MongoDB and files in Cloudinary.
 
 ---
 
@@ -134,40 +142,40 @@ Telemed Aura addresses these by combining **verified providers**, **low-bandwidt
 
 | Benefit | Feature |
 |---------|---------|
-| Reduced travel | Video consult from home |
-| Lower data usage | Adaptive video + audio-only mode |
-| Local language | Hindi UI and localized AI responses |
-| Specialist access | 10 specialties + search/filters |
-| Continuity of care | EMR timeline, consultation records |
-| Faster urgency signaling | Critical alerts after high-risk scans |
-| Transparent booking | Visible slots; past times hidden; video-only booking flow |
+| No travel for routine consults | Video appointments |
+| Lower data usage | Adaptive video + audio-oriented fallback |
+| Hindi support | `LanguageSwitcher`, localized AI |
+| Specialist access | 10 specialties (`constants/specialties.ts`) |
+| Continuity | EMR timeline, consultation records |
+| Faster escalation | `CriticalCareAlert` after high-risk scans |
+| Clear errors | Friendly messages (no raw Mongo/JWT errors) |
 
 ---
 
 ## 10. Coverage Matrix: Objective → Module → Implementation
 
-| Objective | Module | Key Paths / APIs |
+| Objective | Module | Key paths / APIs |
 |-----------|--------|------------------|
-| O1 Secure telehealth | Auth, RBAC | `backend/src/modules/auth/`, `frontend/src/lib/auth/guards.ts` |
-| O1 | Appointments | `appointments.service.ts`, `patient.appointments.tsx` |
-| O2 AI screening | AI Symptom | `services/ai/core/symptom-analyzer.ts`, `POST /ai/symptom-scan` |
-| O3 Patient data | EMR | `emr.service.ts`, `MedicalReport`, `ConsultationRecord` |
-| O3 | Clinical / Reports | `clinical.service.ts`, `POST /clinical/reports` |
-| O4 Video | Video + Signaling | `features/video/`, `signaling/`, `POST .../video-session` |
-| O5 Governance | Admin + Dashboard | `dashboardController.approveDoctor`, `admin.doctors.tsx` |
-| O6 i18n | Frontend + AI | `frontend/src/i18n/`, `services/ai/i18n/` |
-| FO-12 Triage | Clinical | `triage.service.ts`, `DoctorTriagePanel.tsx` |
-| FO-14 Downloads | Files | `files.controller.ts`, `download-file.ts` |
-| NFO-1 Security | Middleware | `helmet`, `cors`, `auth.middleware.ts` |
+| O1 | Authentication | `modules/auth/`, `lib/auth/guards.ts` |
+| O2 | AI Symptom | `services/ai/core/symptom-analyzer.ts`, `POST /ai/symptom-scan` |
+| O3 | EMR | `modules/emr/emr.service.ts`, `routes/patient.emr.tsx` |
+| O4 | Video | `features/video/`, `signaling/`, `POST .../video-session` |
+| O5 | Admin | `dashboardController.approveDoctor`, `admin.doctors.tsx` |
+| FO-4 | Appointments | `appointments.service.ts`, `patient.doctors.tsx` |
+| FO-8 | Reports AI | `services/ai/pipeline/`, `POST /clinical/reports` |
+| FO-9 | Doc Assistant | `doc-assistant/`, `patient.doc-assistant.tsx` |
+| FO-14 | Files | `files.controller.ts`, `DownloadFileButton.tsx` |
+| NFO-1 | Security middleware | `helmet`, `mongo-sanitize`, `authRateLimiter` |
 
 ---
 
-## Assumptions & Limitations (Documented)
+## Assumptions & Limitations
 
-1. **Payments:** `Appointment.fee` exists but is set to `0`; no payment gateway integration.
-2. **Microservices:** `email:dev`, `ai:dev`, `video:dev` scripts exist; production bundles AI + signaling into main API (`index.ts`).
-3. **Booking sub-router:** `appointments/booking/booking.routes.ts` returns 501—not used; booking via `POST /appointments`.
-4. **HIPAA:** Technical controls (auth, encryption in transit) exist; organizational HIPAA compliance is out of scope for code-only assessment.
+1. No online payments; fees are zero.
+2. No native mobile apps (web only).
+3. No FHIR/HL7 export.
+4. Organizational HIPAA compliance is outside code scope.
+5. Automated unit/E2E tests are not in `package.json` (manual QA documented separately).
 
 ---
 

@@ -4,286 +4,283 @@
 
 ---
 
-## 1. Tool Inventory Summary
+## 1. Executive Summary
+
+Telemed Aura is built as a **TypeScript monorepo** with a React/Vite frontend, Express/MongoDB backend, Google Gemini for AI, Cloudinary for media, and Socket.IO for WebRTC signaling. Tool choices prioritize rapid hackathon delivery, rural-network video performance, and **rules-first** clinical safety for AI outputs.
+
+---
+
+## 2. Complete Tool Inventory
 
 | Category | Tools |
 |----------|-------|
-| Frontend | React, Vite, TanStack Router/Start, Tailwind CSS, shadcn/ui, Radix UI, Axios, Socket.IO Client, Zustand, React Query, i18next, Recharts, Framer Motion |
-| Backend | Node.js, Express, TypeScript, Mongoose, Socket.IO, Zod, Helmet, CORS, Multer, bcryptjs, JWT |
-| Database | MongoDB (Atlas or local) |
-| AI / ML | Google Generative AI SDK, Tesseract.js, pdf-parse, mammoth, custom rules engines |
-| Cloud / Storage | Cloudinary |
-| Email | Nodemailer (Gmail SMTP) |
-| Auth | JWT (jsonwebtoken), bcryptjs |
-| Deployment | Vercel (frontend), Render (API per `.env.example`), Cloudflare Workers plugin (wrangler.jsonc) |
-| DevOps / VCS | Git, GitHub |
-| Quality | ESLint, Prettier, TypeScript compiler |
-| Real-time | WebRTC, Socket.IO signaling |
+| **Frontend** | React 19, Vite 7, TanStack Router/Start, Tailwind CSS 4, shadcn/ui, Radix UI, Axios, Socket.IO Client, Zustand, TanStack Query, react-hook-form, Zod, i18next, Recharts, Framer Motion, Sonner |
+| **Backend** | Node.js, Express 4, TypeScript, Mongoose, Socket.IO, Zod, Helmet, CORS, Multer, bcryptjs, JWT, express-rate-limit, express-mongo-sanitize |
+| **Database** | MongoDB (Atlas or local) |
+| **AI** | @google/generative-ai, Tesseract.js, pdf-parse, mammoth, custom rules/ML in `services/ai/` |
+| **Cloud** | Cloudinary |
+| **Email** | Nodemailer (Gmail SMTP) |
+| **Auth** | jsonwebtoken, bcryptjs |
+| **Deployment** | Vercel (frontend), Render (API) per `.env.example`; Cloudflare Wrangler optional |
+| **Quality** | ESLint, Prettier, TypeScript compiler |
+| **VCS** | Git, GitHub |
 
 ---
 
-## 2. Detailed Tool Justifications
+## 3. Detailed Tool Analysis
 
-### 2.1 Frontend Stack
+### 3.1 Frontend
 
 #### React 19
-| Attribute | Detail |
-|-----------|--------|
-| **Category** | UI framework |
-| **Purpose** | Component-based SPA/SSR UI |
-| **Why selected** | Ecosystem maturity, team familiarity, rich component libraries |
-| **Usage** | All `frontend/src/routes/*`, features, layouts |
-| **Advantages** | Hooks, concurrent features, large community |
-| **Limitations** | Requires discipline for state; no built-in routing |
+| Field | Detail |
+|-------|--------|
+| **Category** | UI library |
+| **Purpose** | Component-based SPA |
+| **Why selected** | Industry standard; hooks; large ecosystem |
+| **Usage** | All `frontend/src/routes/*`, components |
+| **Advantages** | Reusable UI; concurrent features |
+| **Limitations** | Requires discipline for state split |
 
 #### Vite 7
-| Category | Build tool / dev server |
-| Purpose | Fast HMR, production bundling |
-| Why selected | Faster than CRA/webpack for TanStack Start |
-| Usage | `npm run dev`, `vite build` |
-| Advantages | ESM-native, plugin ecosystem (`@vitejs/plugin-react`) |
-| Limitations | SSR/edge config complexity with TanStack Start |
+| Field | Detail |
+|-------|--------|
+| **Category** | Build tool / dev server |
+| **Purpose** | Fast HMR and production bundles |
+| **Why selected** | Speed vs webpack; TanStack Start integration |
+| **Usage** | `npm run dev`, `vite build` |
+| **Advantages** | ESM-native dev experience |
+| **Limitations** | SSR/edge config complexity |
 
 #### TanStack Router + React Start
-| Category | Routing / meta-framework |
-| Purpose | File-based routes, type-safe navigation, SSR option |
-| Why selected | Matches `routeTree.gen.ts` pattern; integrated with Vite |
-| Usage | `frontend/src/routes/`, `router.tsx` |
-| Advantages | Type-safe params, code splitting |
-| Limitations | Learning curve vs React Router |
+| Field | Detail |
+|-------|--------|
+| **Category** | Routing / meta-framework |
+| **Purpose** | File-based routes (`routeTree.gen.ts`), typed navigation |
+| **Usage** | 41 route files under `frontend/src/routes/` |
+| **Advantages** | Type-safe params; code splitting |
+| **Limitations** | Learning curve |
 
-#### Tailwind CSS 4 + shadcn/ui + Radix
-| Category | Styling / components |
-| Purpose | Accessible, consistent healthcare UI |
-| Why selected | Rapid hackathon UI; WCAG-friendly primitives |
-| Usage | `components/ui/*`, dashboard cards |
-| Advantages | Customizable, no runtime CSS-in-JS cost |
-| Limitations | Verbose class names; theme migration effort |
+#### Tailwind CSS 4 + shadcn/ui
+| Field | Detail |
+|-------|--------|
+| **Category** | Styling / components |
+| **Purpose** | Healthcare dashboard UI |
+| **Usage** | `components/ui/*`, dashboards |
+| **Advantages** | Accessible Radix primitives; rapid styling |
+| **Limitations** | Verbose utility classes |
 
-#### Axios
-| Category | HTTP client |
-| Purpose | REST calls with interceptors for JWT + `Accept-Language` |
-| Usage | `frontend/src/lib/api/*` |
-| Advantages | Interceptors, wide adoption |
-| Limitations | Heavier than fetch; manual typing |
+#### Axios + custom client
+| Field | Detail |
+|-------|--------|
+| **Category** | HTTP |
+| **Purpose** | REST with JWT, `Accept-Language`, `unwrapApiData` |
+| **Usage** | `frontend/src/lib/api/client.ts` |
+| **Advantages** | Interceptors for 401 logout |
+| **Limitations** | Manual typing per endpoint |
 
 #### Socket.IO Client
-| Category | Real-time |
-| Purpose | WebRTC signaling (offer/answer/ICE) |
-| Usage | `useVideoCall.ts`, `signaling-client.ts` |
-| Advantages | Reconnection, room semantics |
-| Limitations | Requires compatible server; not pure WebSocket |
+| Field | Detail |
+|-------|--------|
+| **Category** | Real-time |
+| **Purpose** | WebRTC signaling |
+| **Usage** | `useVideoCall.ts` |
+| **Advantages** | Reconnection handling |
+| **Limitations** | Must match server version |
 
 #### react-i18next
-| Category | Internationalization |
-| Purpose | English/Hindi for rural users |
-| Usage | `i18n/`, `LanguageSwitcher.tsx` |
-| Advantages | JSON locale files, React hooks |
-| Limitations | Incomplete coverage on some doctor/admin pages |
+| Field | Detail |
+|-------|--------|
+| **Category** | i18n |
+| **Purpose** | English/Hindi for rural users |
+| **Usage** | `i18n/locales/en.json`, `hi.json` |
+| **Advantages** | JSON-driven translations |
+| **Limitations** | Partial coverage on some admin screens |
+
+#### Sonner
+| Field | Detail |
+|-------|--------|
+| **Category** | UX / notifications |
+| **Purpose** | Toast success/error (no `alert()`) |
+| **Usage** | `__root.tsx` Toaster, `lib/api/toast.ts` |
 
 #### Zustand + TanStack Query
-| Category | State management |
-| Purpose | Client UI state vs server cache |
-| Usage | Auth store, appointment/report hooks |
-| Advantages | Minimal boilerplate (Zustand); caching (Query) |
-| Limitations | Two patterns to learn |
+| Field | Detail |
+|-------|--------|
+| **Category** | State |
+| **Purpose** | Auth persist vs server cache |
+| **Usage** | `auth-store.ts`, appointment/report hooks |
 
 ---
 
-### 2.2 Backend Stack
+### 3.2 Backend
 
 #### Node.js + Express 4
-| Category | Runtime / API framework |
-| Purpose | REST API, middleware pipeline |
-| Why selected | Simple module layout, vast middleware ecosystem |
-| Usage | `backend/src/app.ts`, all `modules/*` |
-| Advantages | Fast to prototype; `helmet`, `cors` integration |
-| Limitations | Single-threaded CPU; manual structure discipline |
+| Field | Detail |
+|-------|--------|
+| **Category** | Runtime / API |
+| **Purpose** | REST + middleware pipeline |
+| **Usage** | `backend/src/app.ts`, `modules/*` |
+| **Advantages** | Mature middleware (helmet, cors, rate-limit) |
+| **Limitations** | Single-threaded CPU |
 
 #### TypeScript 5.8
-| Category | Language |
-| Purpose | Type safety across frontend and backend |
-| Usage | Entire monorepo `.ts`/`.tsx` |
-| Advantages | Catches API contract errors at compile time |
-| Limitations | Build step; occasional `@types` gaps |
+| Field | Detail |
+|-------|--------|
+| **Category** | Language |
+| **Purpose** | Shared typing frontend/backend |
+| **Advantages** | Compile-time API safety |
+| **Limitations** | Build step required |
 
 #### Mongoose 9
-| Category | ODM |
-| Purpose | MongoDB schemas, indexes, population |
-| Usage | `backend/src/database/models/*` |
-| Advantages | Schema validation, middleware hooks |
-| Limitations | Not relational; migration tooling manual |
+| Field | Detail |
+|-------|--------|
+| **Category** | ODM |
+| **Purpose** | 16 health-related schemas |
+| **Usage** | `database/models/*.model.ts` |
+| **Advantages** | Flexible documents for varied reports |
+| **Limitations** | App-level consistency for relations |
 
 #### Zod
-| Category | Validation |
-| Purpose | Request body validation in controllers |
-| Usage | Auth, appointments, AI controllers |
-| Advantages | Runtime + inferred types |
-| Limitations | Duplicate schemas if not shared with frontend |
+| Field | Detail |
+|-------|--------|
+| **Category** | Validation |
+| **Purpose** | Request validation (`shared/validations/*`) |
+| **Usage** | Auth, appointments, AI, clinical, reviews routes |
+| **Advantages** | Clear error messages for users |
+| **Limitations** | Schemas must stay synced with frontend forms |
 
 #### Socket.IO (server)
-| Category | Signaling |
-| Purpose | WebRTC negotiation on same port as API |
-| Usage | `signaling/socket.server.ts` |
-| Advantages | Unified deployment (no separate video port required locally) |
-| Limitations | Sticky sessions needed if horizontally scaled |
+| Field | Detail |
+|-------|--------|
+| **Category** | Signaling |
+| **Purpose** | WebRTC on same port as API (`index.ts`) |
+| **Advantages** | Single deploy URL for rural setups |
+| **Limitations** | Sticky sessions if horizontally scaled |
 
-#### Multer
-| Category | File upload |
-| Purpose | Multipart handling (reports, doctor certs) |
-| Usage | `upload.middleware.ts` (20MB limit) |
-| Advantages | Express-native |
-| Limitations | Memory/disk storage config must be monitored |
-
----
-
-### 2.3 Database
-
-#### MongoDB
-| Category | NoSQL database |
-| Purpose | Flexible health documents (reports, scans, EMR) |
-| Why selected | JSON-like documents fit varied medical payloads |
-| Usage | Atlas `MONGODB_URI` or local instance |
-| Advantages | Horizontal scaling, flexible schema |
-| Limitations | No joins; application-level consistency; SRV DNS issues on some networks (documented in `backend/docs/ENV.md`) |
+#### express-rate-limit + express-mongo-sanitize
+| Field | Detail |
+|-------|--------|
+| **Category** | Security |
+| **Purpose** | Brute-force protection; NoSQL injection prevention |
+| **Usage** | `rate-limit.middleware.ts`, `app.ts` |
 
 ---
 
-### 2.4 AI & Document Processing
+### 3.3 Database — MongoDB
 
-#### Google Generative AI (`@google/generative-ai`)
-| Category | LLM / multimodal |
-| Purpose | Symptom enrichment, vision for scans, synthesis, RAG answers |
-| Why selected | Strong multimodal; single API for text+image |
-| Usage | `services/ai/models/gemini-client.ts`, vision, synthesis |
-| Advantages | Cost guards (`cost-guard.ts`), model fallbacks in logs |
-| Limitations | Rate limits; requires API key; non-deterministic |
-
-#### Tesseract.js
-| Category | OCR |
-| Purpose | Extract text from scanned images |
-| Usage | `extraction/` pipeline |
-| Advantages | Runs in Node without external binary |
-| Limitations | Slower than native Tesseract; accuracy on poor scans |
-
-#### pdf-parse / mammoth
-| Category | Document extraction |
-| Purpose | PDF and DOCX text extraction |
-| Usage | Report/prescription pipelines |
-| Advantages | Pure JS integration |
-| Limitations | Complex PDF layouts may parse poorly |
-
-#### Custom Rules Engines
-| Category | Domain logic |
-| Purpose | Deterministic severity, lab parsing, triage |
-| Usage | `rules/severity-engine.ts`, `symptom-triage.rules.ts` |
-| Advantages | Auditable, hackathon-safe (not black-box ML only) |
-| Limitations | Maintenance as medical rules grow |
+| Field | Detail |
+|-------|--------|
+| **Purpose** | Store users, appointments, reports, AI chunks, notifications |
+| **Why selected** | JSON-like documents fit heterogeneous medical data |
+| **Usage** | `MONGODB_URI`, `MONGODB_DB_NAME` in `.env` |
+| **Advantages** | Flexible schema; Atlas hosting |
+| **Limitations** | SRV DNS issues on some networks (documented in `backend/docs/ENV.md`) |
 
 ---
 
-### 2.5 Cloud & Integrations
+### 3.4 AI & Document Processing
+
+#### Google Generative AI SDK
+| Field | Detail |
+|-------|--------|
+| **Purpose** | Symptom enrichment, vision, synthesis, RAG answers |
+| **Usage** | `services/ai/models/gemini-client.ts` |
+| **Advantages** | Multimodal in one API |
+| **Limitations** | Rate limits; requires `GEMINI_API_KEY`; non-deterministic |
+
+#### Tesseract.js + pdf-parse + mammoth
+| Field | Detail |
+|-------|--------|
+| **Purpose** | OCR and document text extraction |
+| **Usage** | `services/ai/extraction/` |
+| **Advantages** | Runs in Node without external binaries |
+| **Limitations** | OCR quality on poor scans |
+
+#### Custom rules engines
+| Field | Detail |
+|-------|--------|
+| **Purpose** | Deterministic severity, lab parsing, triage |
+| **Usage** | `severity-engine.ts`, `symptom-triage.rules.ts` |
+| **Advantages** | Auditable for hackathon judges |
+| **Limitations** | Manual maintenance as rules grow |
+
+---
+
+### 3.5 Cloud & Integrations
 
 #### Cloudinary
-| Category | Media CDN |
-| Purpose | Doctor certificates, report uploads, secure URLs |
-| Usage | `cloudinary.service.ts` |
-| Advantages | Transformations, CDN delivery |
-| Limitations | Requires credentials; costs at scale |
+| Field | Detail |
+|-------|--------|
+| **Purpose** | Doctor certificates, report/Rx uploads, CDN URLs |
+| **Usage** | `cloudinary.service.ts` |
+| **Advantages** | CDN + transforms |
+| **Limitations** | Requires env credentials |
 
 #### Nodemailer
-| Category | Email |
-| Purpose | OTP, appointment emails, AI alerts |
-| Usage | `services/email/`, `mail.service.ts` |
-| Advantages | SMTP flexibility (Gmail) |
-| Limitations | Gmail app-password limits; not for bulk marketing |
+| Field | Detail |
+|-------|--------|
+| **Purpose** | OTP, appointment emails, AI alerts |
+| **Usage** | `mail.service.ts`, `services/email/` |
+| **Limitations** | Gmail sending limits |
 
 ---
 
-### 2.6 Authentication & Security
+### 3.6 Authentication
 
 #### jsonwebtoken + bcryptjs
-| Category | Auth |
-| Purpose | Stateless sessions, password hashing |
-| Usage | `auth.service.ts`, `auth.middleware.ts` |
-| Advantages | Standard pattern, easy horizontal scaling |
-| Limitations | Token in `localStorage` — XSS risk mitigated by CSP/Helmet but not HttpOnly cookies |
-
-#### Helmet + CORS
-| Category | Security headers |
-| Purpose | HTTP hardening, origin allowlist |
-| Usage | `app.ts`, `frontend-origins.ts` |
+| Field | Detail |
+|-------|--------|
+| **Purpose** | Stateless sessions; password hashing (10 rounds) |
+| **Usage** | `auth.service.ts`, `telemed-auth-token` in localStorage |
+| **Advantages** | Horizontally scalable API |
+| **Limitations** | localStorage XSS risk mitigated by Helmet; not HttpOnly cookies |
 
 ---
 
-### 2.7 Deployment & Infrastructure
+### 3.7 Deployment
 
-#### Vercel (documented)
-| Category | Frontend hosting |
-| Purpose | Deploy TanStack/Vite app |
-| Usage | `frontend/.env.example` production URLs |
-| Advantages | Git integration, CDN |
-| Limitations | Serverless limits for long-running processes |
-
-#### Render (documented)
-| Category | Backend hosting |
-| Purpose | Host Express + Socket.IO |
-| Usage | `API_PUBLIC_URL`, `VITE_API_URL` examples |
-| Advantages | Simple Node deploy |
-| Limitations | WebSocket timeout configuration needed |
-
-#### Cloudflare Wrangler
-| Category | Edge deploy (optional) |
-| Purpose | `wrangler.jsonc` for Workers compatibility |
-| Usage | `frontend/wrangler.jsonc`, `@cloudflare/vite-plugin` |
-| Advantages | Edge SSR potential |
-| Limitations | `nodejs_compat` required; not primary doc path |
+| Platform | Role |
+|----------|------|
+| **Vercel** | Frontend static/SSR deploy (`frontend/.env.example`) |
+| **Render** | Node API + Socket.IO (`API_PUBLIC_URL`) |
+| **Cloudflare Workers** | Optional via `wrangler.jsonc` + `@cloudflare/vite-plugin` |
 
 ---
 
-### 2.8 Development & Quality Tools
+### 3.8 Testing & Quality (Current vs Recommended)
 
-| Tool | Purpose | Advantages | Limitations |
-|------|---------|------------|-------------|
-| **tsx** | Run TS without pre-build in dev | Fast iteration | Not for production |
-| **ESLint 9** | Lint TS/TSX | Catches common bugs | No runtime guarantees |
-| **Prettier** | Formatting | Consistent style | Subjective rules |
-| **Git / GitHub** | VCS, collaboration | Branching, PRs | Manual review quality |
-| **Bun lockfile** (frontend) | Package management | Fast installs | Team must agree on package manager |
-
----
-
-### 2.9 Testing Tools (Gap Analysis)
-
-| Tool | Status | Recommendation |
-|------|--------|----------------|
-| Jest/Vitest | Not in repo | Add for rules/unit tests |
-| Playwright | Not in repo | E2E for TC-008 consult path |
-| Postman | External | API regression collection |
-| k6 | Not in repo | Load test `/ai/symptom-scan` |
+| Tool | Status | Role |
+|------|--------|------|
+| Manual browser QA | **Active** | Primary per `DOCUMENT_04` |
+| ESLint + Prettier | **Active** | Static style/lint |
+| Vitest | Recommended | Unit test rules/slots |
+| Playwright | Recommended | E2E login → book → consult |
+| Postman | Optional | API regression collection |
 
 ---
 
-## 3. Architecture Decision Summary
+## 4. Architecture Decision Summary
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Monorepo | `frontend/` + `backend/` | Clear separation; shared hackathon repo |
-| Rules-first AI severity | Custom engines + Gemini assist | Safety, explainability for judges |
-| Signaling on API port | Single `httpServer` | Simpler rural deployment (one URL) |
-| MongoDB | Document store | Heterogeneous medical JSON |
-| No payment gateway | Scope control | Focus on care delivery MVP |
+| Monorepo | `frontend/` + `backend/` | Clear separation; single Git repo |
+| Rules-first AI | Custom engines + Gemini assist | Safety; explainable severity |
+| Signaling on API port | Single `httpServer` | Simpler deployment for demos |
+| Standard API envelope | `{ success, message, data }` | Professional errors for hackathon |
+| No payments | `fee: 0` | Focus on care delivery MVP |
 
 ---
 
-## 4. Environment Configuration Tools
+## 5. Environment Configuration Files
 
-| File | Role |
-|------|------|
+| File | Purpose |
+|------|---------|
 | `backend/.env` | `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, Cloudinary, email |
-| `frontend/.env` | `VITE_API_URL`, `VITE_VIDEO_SERVICE_URL`, signaling path |
-| `backend/docs/ENV.md` | MongoDB troubleshooting |
+| `frontend/.env` | `VITE_API_URL`, `VITE_VIDEO_SERVICE_URL` |
+| `frontend/.env.example` | Production URL templates |
+| `docs/ERROR_HANDLING.md` | API error contract |
 | `docs/IMPLEMENTATION_PLAN.md` | Phase roadmap |
+| `backend/services/ai/ARCHITECTURE.md` | AI pipeline design |
 
 ---
 

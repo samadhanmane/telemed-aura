@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { SPECIALTIES } from "../../constants/specialties.js";
 import { objectIdSchema } from "./common.js";
+import {
+  normalizeSlotTimeForStorage,
+  parseTimeToMinutes,
+  slotToLocalDateFromTime,
+} from "../appointment-slots.js";
 
 const specialtyIds = SPECIALTIES.map((s) => s.id) as [string, ...string[]];
 
@@ -8,9 +13,12 @@ const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Please select appointment date");
 
+/** Accepts booking UI labels (9:00 AM) or HH:mm; stores HH:mm. */
 const timeSchema = z
-  .string()
-  .regex(/^\d{2}:\d{2}$/, "Please select a time slot");
+  .string({ required_error: "Please select a time slot" })
+  .min(1, "Please select a time slot")
+  .refine((t) => parseTimeToMinutes(t) >= 0, "Please select a valid time slot")
+  .transform((t) => normalizeSlotTimeForStorage(t));
 
 export const createAppointmentSchema = z.object({
   doctorId: objectIdSchema,
@@ -35,11 +43,11 @@ export const updateAppointmentSchema = z.object({
 });
 
 export function assertFutureAppointmentDate(date: string, time: string) {
-  const slot = new Date(`${date}T${time}:00`);
-  if (Number.isNaN(slot.getTime())) {
+  const slotStart = slotToLocalDateFromTime(date, time);
+  if (Number.isNaN(slotStart.getTime())) {
     throw new Error("Please select appointment date");
   }
-  if (slot.getTime() < Date.now() - 60_000) {
+  if (slotStart.getTime() < Date.now() - 60_000) {
     throw new Error("Appointments cannot be booked in the past");
   }
 }

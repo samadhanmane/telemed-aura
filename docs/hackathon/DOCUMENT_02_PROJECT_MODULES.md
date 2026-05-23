@@ -4,67 +4,65 @@
 
 ---
 
-## Architecture Overview
+## 1. System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         CLIENT (Browser)                                 │
-│  TanStack Router │ React │ shadcn/ui │ i18n │ Socket.IO │ Axios         │
-└───────────────────────────────┬─────────────────────────────────────────┘
-                                │ HTTPS / WSS
+┌──────────────────────────────────────────────────────────────────────────┐
+│  BROWSER (React + Vite + TanStack Router)                                 │
+│  Routes: /, /login, /register, /patient/*, /doctor/*, /admin/*, /consult/*│
+└───────────────────────────────┬──────────────────────────────────────────┘
+                                │ HTTPS  +  WSS (/signaling)
                                 ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    API SERVER (Express :4000)                            │
-│  /api/v1/auth │ doctors │ appointments │ clinical │ ai │ emr │ ...    │
-│  /signaling (Socket.IO WebRTC) │ /health                                 │
-└───────┬─────────────────┬──────────────────┬──────────────────────────┘
-        │                 │                  │
-        ▼                 ▼                  ▼
-   MongoDB Atlas    Cloudinary CDN      Gmail SMTP
-   (Mongoose)       (uploads)           (Nodemailer)
-        │
-        ▼
-   Google Gemini API (vision, synthesis, RAG, symptom)
+┌──────────────────────────────────────────────────────────────────────────┐
+│  EXPRESS API (:4000)  —  /api/v1/*  +  /health  +  Socket.IO signaling    │
+│  Middleware: helmet, cors, mongo-sanitize, rate-limit, JWT, Zod validate   │
+└───────┬─────────────┬──────────────┬──────────────┬────────────────────────┘
+        ▼             ▼              ▼              ▼
+   MongoDB       Cloudinary      Gmail SMTP      Google Gemini
+```
+
+**Response contract (most routes):**
+```json
+{ "success": true, "message": "...", "data": { } }
+{ "success": false, "message": "...", "errors": [{ "field": "", "message": "" }] }
 ```
 
 ---
 
-## Module Catalog
+## 2. Module Catalog (19 Modules)
 
 ### M1 — Authentication & Identity
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Register, login, profile, password reset, doctor onboarding |
-| **Features** | Patient/doctor/admin roles; JWT; doctor certificate upload; OTP reset |
-| **Input** | Email, password, profile fields, multipart certificate |
-| **Output** | JWT token, user payload, specialty list |
-| **Workflow** | Register → hash password → (doctor: pending) → login → JWT in `localStorage` |
-| **Technology** | Express, bcryptjs, jsonwebtoken, multer, Cloudinary |
-| **API Endpoints** | `GET /auth/specialties`, `POST /auth/register`, `POST /auth/register/doctor`, `POST /auth/login`, `POST /auth/forgot-password/*`, `GET /auth/me`, `PATCH /auth/me/profile` |
-| **Database** | `User`, `DoctorProfile`, `PasswordResetOtp` |
+| **Purpose** | Register, login, profile, OTP password reset |
+| **Features** | Patient/doctor signup; doctor certificate; admin env login; rate-limited auth |
+| **Input** | email, password, name, phone; doctor: specialty, license, experience, certificate file |
+| **Output** | JWT + user profile; or pending doctor message |
+| **Workflow** | Register → hash (bcrypt) → doctor pending → admin approve → login |
+| **Technology** | Express, Zod (`auth.schemas.ts`), bcryptjs, JWT, multer |
+| **API** | `GET /auth/specialties`, `POST /auth/register`, `POST /auth/register/doctor`, `POST /auth/login`, `POST /auth/forgot-password/request`, `POST /auth/forgot-password/reset`, `GET /auth/me`, `PATCH /auth/me/profile` |
+| **DB** | `User`, `DoctorProfile`, `PasswordResetOtp` |
 | **UI** | `login.tsx`, `register.tsx`, `forgot-password.tsx`, `SpecialtyCategoryPicker.tsx` |
-| **Dependencies** | Cloudinary (doctor cert), mail (OTP) |
-| **Security** | Password hash not returned; doctor blocked until approved |
+| **Security** | Password 8+ upper/lower/number on register; generic login failure message |
 | **Integrations** | All modules via `requireAuth` |
 
 ---
 
-### M2 — Doctor Directory & Availability
+### M2 — Doctor Directory & Slots
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | List verified doctors, compute bookable slots |
-| **Features** | Filter by specialty; weekly schedule; blocked dates; 48×30-min slots/day |
-| **Input** | `specialty`, `date` (YYYY-MM-DD), doctor availability JSON |
-| **Output** | Doctor cards, `slots[]` with `available` flag |
-| **Workflow** | Patient selects specialty → doctor → date → slot → book |
-| **Technology** | Mongoose, `buildAppointmentSlotTimes()` |
-| **API** | `GET /doctors`, `GET /doctors/:id/slots`, `GET /doctors/me`, `PUT /doctors/me/availability` |
-| **Database** | `DoctorProfile` (availability, blockedDates, verificationStatus) |
+| **Purpose** | List approved doctors; compute 30-minute bookable slots |
+| **Features** | Specialty filter; weekly schedule; blocked dates; hide past slots today |
+| **Input** | `?specialty=`, `?date=YYYY-MM-DD` |
+| **Output** | Doctor list; `{ date, slots: string[] }` |
+| **Workflow** | Patient filters → picks doctor/date → selects available time |
+| **Technology** | `appointment-slots.ts`, `doctors.service.ts` |
+| **API** | `GET /doctors`, `GET /doctors/:id/slots`, `GET/PUT /doctors/me/availability` |
+| **DB** | `DoctorProfile` |
 | **UI** | `patient.doctors.tsx`, `doctor.availability.tsx` |
-| **Security** | Public list only `approved` doctors |
-| **Integrations** | Appointments, Dashboard |
+| **Security** | Only `verificationStatus: approved` in public list |
 
 ---
 
@@ -72,17 +70,15 @@
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Book, confirm, cancel, complete video visits |
-| **Features** | Status machine; email on create/update; video session token; leave vs complete |
+| **Purpose** | Book and manage video consultations |
+| **Features** | Status machine; email on book/update; unique doctor+date+time index |
 | **Input** | `doctorId`, `date`, `time`, `specialty` |
-| **Output** | Appointment document, notifications, emails |
-| **Workflow** | `pending` → doctor `confirmed` → join video `in_progress` → doctor `completed` + EMR finalize |
-| **Technology** | Express, Nodemailer |
-| **API** | `GET/POST /appointments`, `GET/PATCH /appointments/:id`, `POST .../video-session`, `.../leave`, `.../end` |
-| **Database** | `Appointment` (unique doctor+date+time index) |
-| **UI** | `patient.appointments.tsx`, `doctor.appointments.tsx`, `use-appointments.ts` |
-| **Security** | Role-filtered lists; only participants join video |
-| **Integrations** | Video, EMR, Reviews, Notifications, Email |
+| **Output** | `Appointment` with `mode: "video"`, `fee: 0` |
+| **Workflow** | pending → confirmed → in_progress (on join) → completed (doctor only) |
+| **API** | `GET/POST /appointments`, `GET/PATCH /appointments/:id`, video-session routes |
+| **DB** | `Appointment` |
+| **UI** | `patient.appointments.tsx`, `doctor.appointments.tsx` |
+| **Integrations** | Video, EMR finalize, Reviews, Notifications, Email |
 
 ---
 
@@ -90,17 +86,14 @@
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Real-time audio/video between patient and doctor |
-| **Features** | Socket.IO signaling; adaptive bitrate; audio-only; mirror local preview; rejoin |
-| **Input** | Appointment id, JWT, SDP/ICE |
-| **Output** | Peer connection, media streams |
-| **Workflow** | `videoSession` → join room → OFFER/ANSWER/ICE → leave (session stays) → rejoin → doctor completes |
-| **Technology** | WebRTC, Socket.IO, `adaptive-media.ts` |
+| **Purpose** | Real-time audio/video consult |
+| **Features** | Socket.IO signaling; adaptive tiers; leave without ending; doctor completes visit |
+| **Input** | appointmentId, JWT, SDP/ICE |
+| **Output** | Media streams; session token |
+| **Workflow** | `POST .../video-session` → join room → OFFER/ANSWER/ICE → leave/rejoin → doctor `completed` |
 | **API** | `GET /video/ice-servers`, `GET /video/media-config`, signaling events |
-| **Database** | `Appointment.roomId`, status |
-| **UI** | `ConsultRoom.tsx`, `PatientConsultRoom.tsx`, `DoctorConsultRoom.tsx`, `useVideoCall.ts` |
-| **Security** | Signaling auth middleware; appointment role check |
-| **Integrations** | Appointments, EMR on complete |
+| **UI** | `patient.consult.$appointmentId.tsx`, `doctor.consult.$appointmentId.tsx`, `useVideoCall.ts` |
+| **Security** | Signaling auth; only confirmed/in_progress; participant check |
 
 ---
 
@@ -108,78 +101,58 @@
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Patient-reported symptom triage with severity tier |
-| **Features** | Rule-based triage; optional Gemini enrichment; health score; critical alert |
-| **Input** | Symptom text, optional vitals |
-| **Output** | `severity`, `healthScore`, `recommendations`, stored `SymptomScan` |
-| **Workflow** | Submit → rules → optional LLM → persist → notify if high severity |
-| **Technology** | Gemini, `symptom-triage.rules.ts`, `symptom-analyzer.ts` |
+| **Purpose** | Patient-reported triage with severity tier |
+| **Input** | symptoms[], description, optional vitals, locale |
+| **Output** | `SymptomScan` + recommendations; may create `CriticalCareAlert` |
 | **API** | `POST /ai/symptom-scan`, `GET /ai/health-summary` |
-| **Database** | `SymptomScan`, `CriticalCareAlert` |
+| **DB** | `SymptomScan`, `CriticalCareAlert` |
 | **UI** | `patient.ai-scanner.tsx` |
-| **Security** | Patient role only |
-| **Integrations** | Clinical triage, EMR, Notifications |
+| **Policy** | Rules-first severity; disclaimers in UI |
 
 ---
 
-### M6 — Medical Report Analysis (Clinical AI Pipeline)
+### M6 — Medical Report Analysis (Clinical AI)
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Upload lab/imaging reports; extract, score severity, chart values |
-| **Features** | PDF/OCR → rules → optional vision → synthesis → doctor review |
-| **Input** | Multipart file (≤20MB) |
-| **Output** | `MedicalReport` with severity, charts, AI summary |
-| **Workflow** | See `backend/services/ai/ARCHITECTURE.md` (6-layer pipeline) |
-| **Technology** | pdf-parse, Tesseract, Gemini Vision, severity-engine |
+| **Purpose** | Upload labs/imaging; extract; score; chart |
+| **Pipeline** | Cloudinary → extract → rules → ML → vision → synthesis → severity (rules only) |
 | **API** | `POST /clinical/reports`, `GET /clinical/reports`, `PATCH /clinical/reports/:id/review` |
-| **Database** | `MedicalReport` |
-| **UI** | `patient.reports.tsx`, `doctor.reports.tsx` |
-| **Security** | Patient owns uploads; doctor reviews assigned reports |
-| **Integrations** | Cloudinary, EMR, Admin AI monitoring |
+| **DB** | `MedicalReport` |
+| **UI** | `patient.reports.tsx`, `doctor.reports.tsx`, `ReportChatPanel.tsx` |
 
 ---
 
-### M7 — Doc Assistant (Document RAG)
+### M7 — Doc Assistant (RAG)
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Upload health documents and chat with context-aware answers |
-| **Features** | Chunking, embedding retrieval, localized answers, download only (no open-in-tab) |
-| **Input** | File upload, chat message + `documentId` |
-| **Output** | Answer text, document list |
-| **Workflow** | Upload → chunk store → chat retrieves chunks → Gemini answer |
-| **Technology** | `doc-assistant` service, `DocumentChunk` model |
-| **API** | `POST /ai/documents/upload`, `GET /ai/documents`, `POST /ai/document-chat` |
-| **Database** | `DocumentChunk`, `PrescriptionUpload` (metadata) |
-| **UI** | `patient.doc-assistant.tsx` |
-| **Integrations** | Files download, i18n translator |
+| **Purpose** | Upload documents; Q&A with retrieved chunks |
+| **API** | `GET /ai/documents`, `POST /ai/documents/upload`, `POST /ai/document-chat` |
+| **DB** | `DocumentChunk`, `PrescriptionUpload` |
+| **UI** | `patient.doc-assistant.tsx`, `DocAssistantHub.tsx` |
 
 ---
 
-### M8 — Prescription Management
+### M8 — Prescriptions
 
 | Attribute | Detail |
 |-----------|--------|
 | **Purpose** | Doctor digital Rx; patient OCR upload |
-| **Features** | Structured prescription create; OCR parse; list by role |
-| **API** | `POST /clinical/patients/:id/prescriptions`, `GET /clinical/prescriptions`, `POST /ai/prescription-ocr` |
-| **Database** | `Prescription`, `PrescriptionUpload` |
+| **API** | `POST /clinical/patients/:id/prescriptions`, `GET /clinical/prescriptions`, `POST /ai/prescription-ocr`, `POST /ai/prescription-ocr/file` |
+| **DB** | `Prescription`, `PrescriptionUpload` |
 | **UI** | `doctor.prescriptions.tsx`, `patient.prescriptions.tsx` |
-| **Integrations** | EMR, AI pipeline |
 
 ---
 
-### M9 — EMR (Electronic Medical Record)
+### M9 — EMR
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Unified patient health timeline |
-| **Features** | Profile, vitals, snapshots, consultation records, access control |
-| **API** | `GET /emr/me`, `POST /emr/me/snapshot`, `PATCH /emr/me/profile`, `POST /emr/me/vitals`, doctor patient EMR routes |
-| **Database** | `EmrSnapshot`, `VitalRecord`, `ConsultationRecord`, `ClinicalNote` |
-| **UI** | `patient.emr.tsx`, `doctor/patients/$patientId/emr.tsx` |
-| **Integrations** | Appointments (finalize on complete), Clinical |
+| **Purpose** | Unified health timeline |
+| **API** | `GET /emr/me`, `POST /emr/me/snapshot`, `PATCH /emr/me/profile`, `POST /emr/me/vitals`, doctor patient EMR, `POST /emr/consultations/:id/complete` |
+| **DB** | Aggregates User, ConsultationRecord, Prescription, MedicalReport, SymptomScan, VitalRecord, EmrSnapshot |
+| **UI** | `patient.emr.tsx`, `doctor.patients.$patientId.emr.tsx`, `EmrView.tsx` |
 
 ---
 
@@ -187,168 +160,91 @@
 
 | Attribute | Detail |
 |-----------|--------|
-| **Purpose** | Escalate high-risk patients to doctors |
-| **Features** | Triage queue, accept critical, urgent book, patient critical banner |
-| **API** | `/clinical/doctor/triage-queue`, `/clinical/patient/critical-*`, `/clinical/doctor/urgent-book` |
-| **Database** | `CriticalCareAlert` |
-| **UI** | `DoctorTriagePanel.tsx`, critical alert components |
-| **Integrations** | Symptom scan, Appointments |
+| **Purpose** | Escalate and book urgent cases |
+| **API** | `/clinical/doctor/triage-queue`, `/clinical/doctor/critical-patients`, `/clinical/doctor/urgent-book`, `/clinical/patient/critical-*`, `/clinical/doctor/reschedule` |
+| **DB** | `CriticalCareAlert` |
+| **UI** | `DoctorTriagePanel.tsx`, critical banners on patient flows |
 
 ---
 
 ### M11 — Notifications
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | In-app notification center |
 | **API** | `GET /notifications`, `PATCH /notifications/:id/read`, `PATCH /notifications/read-all` |
-| **Database** | `Notification` |
-| **UI** | `NotificationBell.tsx`, dashboard hooks |
-| **Integrations** | Appointments, AI alerts |
+| **DB** | `Notification` |
+| **UI** | `patient.notifications.tsx`, `doctor.notifications.tsx`, `NotificationBell` |
 
 ---
 
 ### M12 — Email Service
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Transactional email (booking, status, OTP, AI alerts) |
-| **Technology** | Nodemailer, templates under `backend/services/email/templates/` |
-| **Config** | `EMAIL`, `EMAIL_PASSWORD`, `FRONTEND_URL` |
-| **Integrations** | Auth OTP, Appointments, AI critical notifications |
+| **Technology** | Nodemailer; templates in `services/email/templates/` |
+| **Triggers** | Booking, status change, OTP, AI high-severity alerts |
 
 ---
 
-### M13 — Reviews & Ratings
+### M13 — Reviews
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Post-consultation feedback |
-| **API** | `POST /reviews`, `GET /reviews`, `GET /reviews/appointment/:id` |
-| **Database** | `ConsultationReview` |
+| **API** | `POST /reviews`, `GET /reviews`, `GET /reviews/appointment/:appointmentId` |
+| **DB** | `ConsultationReview` |
 | **UI** | `RateConsultationDialog.tsx` |
-| **Integrations** | Appointments (must be `completed`) |
 
 ---
 
 ### M14 — Dashboards & Analytics
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Role-specific home metrics and charts |
 | **API** | `/dashboard/patient`, `/dashboard/doctor`, `/dashboard/admin`, analytics sub-routes |
 | **UI** | `patient.index.tsx`, `doctor.index.tsx`, `admin.index.tsx`, `*.analytics.tsx` |
-| **Integrations** | Aggregates from MongoDB collections |
 
 ---
 
-### M15 — Admin & Governance
+### M15 — Admin Governance
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Approve doctors, view users, AI monitoring |
-| **API** | `/dashboard/admin/*`, approve/reject doctor |
+| **API** | `/dashboard/admin/doctors`, approve/reject, users, patients, `ai-monitoring` |
 | **UI** | `admin.doctors.tsx`, `admin.patients.tsx`, `admin.ai-monitoring.tsx` |
-| **Security** | `requireRole("admin")` |
 
 ---
 
 ### M16 — File Download Proxy
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Authenticated download of Cloudinary/local uploads |
-| **API** | `GET /files/download?url=...` |
-| **UI** | `DownloadFileButton.tsx` |
-| **Security** | URL allowlist (Cloudinary + `/uploads/`) |
+| **API** | `GET /files/download?url=&filename=` |
+| **Security** | Cloudinary + `/uploads/` allowlist only |
 
 ---
 
-### M17 — Internationalization (i18n)
+### M17 — Internationalization
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | English/Hindi UI and localized AI |
-| **Technology** | react-i18next, `Accept-Language` header, `translator.ts` |
-| **UI** | `LanguageSwitcher.tsx`, `en.json`, `hi.json` |
+| **Tech** | react-i18next, `en.json`, `hi.json`, `Accept-Language` header |
 
 ---
 
 ### M18 — Public Marketing Site
 
-| Attribute | Detail |
-|-----------|--------|
-| **Purpose** | Landing, SEO, auth-gated CTAs |
-| **UI** | `index.tsx`, `SiteHeader`, `SiteFooter` |
-| **Routes** | `/`, `/login`, `/register` |
+| **UI** | `index.tsx`, `SiteHeader`, `SiteFooter`, auth-gated CTAs |
 
 ---
 
-## Module Interaction Diagram (Text)
+### M19 — API Infrastructure (Cross-cutting)
 
-```
-                    ┌──────────────┐
-                    │   Landing    │
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌─────────┐  ┌──────────┐  ┌─────────┐
-        │  Auth   │  │  Admin   │  │  i18n   │
-        └────┬────┘  └────┬─────┘  └────┬────┘
-             │            │             │
-    ┌────────┼────────────┼─────────────┘
-    ▼        ▼            ▼
-┌────────┐ ┌──────────┐ ┌─────────────┐
-│Doctors │→│Appointments│→│   Video     │
-└───┬────┘ └─────┬────┘ └──────┬──────┘
-    │            │              │
-    │            ├──────────────┼──→ EMR
-    │            ▼              │
-    │      ┌───────────┐       │
-    │      │  Email    │       │
-    │      └───────────┘       │
-    ▼            ▼              ▼
-┌────────┐  ┌──────────┐  ┌──────────┐
-│AI Scan │→│ Critical │  │ Reviews  │
-└───┬────┘  │  Triage  │  └──────────┘
-    │       └────┬─────┘
-    ▼            ▼
-┌────────┐  ┌──────────┐
-│Reports │  │Doc Assist│
-│Pipeline│  │   RAG    │
-└───┬────┘  └────┬─────┘
-    │            │
-    └─────┬──────┘
-          ▼
-    ┌───────────┐     ┌──────────────┐
-    │ Cloudinary│     │ Notifications│
-    └───────────┘     └──────────────┘
-          │
-          ▼
-    ┌───────────┐
-    │  Gemini   │
-    └───────────┘
-```
+| **Components** | `AppError`, `asyncHandler`, `error-handler.ts`, `validate.middleware.ts`, `response.ts`, `client.ts` interceptors |
 
 ---
 
-## Database Schema Summary
+## 3. Database Collections (16 Models)
 
-| Collection | Primary Use |
-|------------|-------------|
-| User | Credentials, role, health profile |
+| Collection | Purpose |
+|------------|---------|
+| User | Auth, profile, health fields |
 | DoctorProfile | Specialty, license, availability, verification |
-| Appointment | Bookings, video room, status |
+| Appointment | Bookings, roomId, status |
 | SymptomScan | AI symptom history |
-| MedicalReport | Uploaded report analysis |
-| Prescription | Doctor-issued Rx |
+| MedicalReport | Uploaded report + aiAnalysis |
+| Prescription | Doctor-issued medicines |
 | PrescriptionUpload | Patient-uploaded Rx files |
-| DocumentChunk | RAG chunks |
-| ConsultationRecord | Visit summary post-complete |
-| ConsultationReview | Ratings |
-| EmrSnapshot | Point-in-time EMR export |
-| VitalRecord | BP, glucose, etc. |
+| DocumentChunk | RAG embeddings text |
+| ConsultationRecord | Completed visit summary |
+| ConsultationReview | Star ratings |
+| EmrSnapshot | Point-in-time export |
+| VitalRecord | BP, glucose, SpO2 |
 | ClinicalNote | Doctor notes per patient |
 | Notification | In-app alerts |
 | CriticalCareAlert | High-risk escalations |
@@ -356,16 +252,38 @@
 
 ---
 
-## Frontend Route Map (Implemented)
+## 4. Frontend Route Map (41 route files)
 
-| Route | Role | Module |
-|-------|------|--------|
-| `/` | Public | Marketing |
-| `/login`, `/register`, `/forgot-password` | Public | Auth |
-| `/patient/*` | Patient | Dashboard, doctors, appointments, scanner, reports, doc-assistant, EMR, analytics |
-| `/doctor/*` | Doctor | Dashboard, appointments, patients, prescriptions, reports, availability, analytics |
-| `/admin/*` | Admin | Dashboard, doctors, patients, analytics, AI monitoring |
-| `/consult/:appointmentId` | Patient/Doctor | Video |
+| Area | Routes |
+|------|--------|
+| Public | `/`, `/login`, `/register`, `/forgot-password` |
+| Patient | `/patient`, `/patient/doctors`, `/patient/appointments`, `/patient/ai-scanner`, `/patient/reports`, `/patient/doc-assistant`, `/patient/emr`, `/patient/prescriptions`, `/patient/analytics`, `/patient/timeline`, `/patient/notifications`, `/patient/settings`, `/patient/consult/$appointmentId` |
+| Doctor | `/doctor`, `/doctor/appointments`, `/doctor/patients`, `/doctor/patients/$patientId/emr`, `/doctor/prescriptions`, `/doctor/reports`, `/doctor/availability`, `/doctor/analytics`, `/doctor/notifications`, `/doctor/settings`, `/doctor/consult/$appointmentId` |
+| Admin | `/admin`, `/admin/doctors`, `/admin/patients`, `/admin/users`, `/admin/appointments`, `/admin/reports`, `/admin/analytics`, `/admin/ai-monitoring`, `/admin/notifications`, `/admin/settings` |
+
+---
+
+## 5. Module Interaction Diagram (Text)
+
+```
+[Landing] ──► [Auth] ──► Patient / Doctor / Admin dashboards
+                │
+    ┌───────────┼───────────┐
+    ▼           ▼           ▼
+[Doctors]──►[Appointments]──►[Video]──►[EMR Complete]
+    │           │              │
+    │           ├──►[Email]    └──►[Reviews]
+    │           └──►[Notifications]
+    ▼
+[AI Symptom]──►[Critical/Triage]──►[Urgent Book]
+    │
+    ├──►[Reports Pipeline]──►[Doctor Review]
+    └──►[Doc Assistant RAG]
+              │
+         [Cloudinary] ◄── [Files Download]
+              │
+         [Gemini API]
+```
 
 ---
 
