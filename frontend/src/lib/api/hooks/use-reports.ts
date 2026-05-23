@@ -1,14 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useReportStore } from "@/stores/report-store";
+import { fetchMyReports } from "@/lib/api/clinical";
 
 export function useReports() {
-  const reports = useReportStore((s) => s.reports);
   return useQuery({
-    queryKey: ["reports"],
-    queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 250));
-      return reports;
-    },
-    initialData: reports,
+    queryKey: ["my-reports"],
+    queryFn: fetchMyReports,
   });
 }

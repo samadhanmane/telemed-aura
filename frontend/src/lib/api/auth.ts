@@ -9,9 +9,13 @@ export type AuthUser = {
   healthScore?: number;
   doctorProfile?: {
     specialty: string;
+    specialtyLabel?: string;
     licenseNumber: string;
     experienceYears: number;
-    consultationFee: number;
+    verified?: boolean;
+    verificationStatus?: "pending" | "approved" | "rejected";
+    rating?: number;
+    reviewCount?: number;
   };
 };
 
@@ -30,12 +34,44 @@ export async function register(payload: Record<string, unknown>) {
   return data;
 }
 
+export async function registerDoctor(form: FormData) {
+  const { data } = await apiClient.post<{
+    pending: boolean;
+    email: string;
+    message: string;
+  }>("/auth/register/doctor", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export async function fetchMe() {
   const { data } = await apiClient.get<{ user: AuthUser }>("/auth/me");
+  return data.user;
+}
+
+export async function updateAuthProfile(body: { name?: string; phone?: string }) {
+  const { data } = await apiClient.patch<{ user: AuthUser }>("/auth/me/profile", body);
   return data.user;
 }
 
 export async function fetchSpecialties() {
   const { data } = await apiClient.get<{ specialties: Specialty[] }>("/auth/specialties");
   return data.specialties;
+}
+
+export async function requestForgotPasswordOtp(email: string) {
+  const { data } = await apiClient.post<{ message: string }>("/auth/forgot-password/request", {
+    email,
+  });
+  return data;
+}
+
+export async function resetPasswordWithOtp(body: {
+  email: string;
+  otp: string;
+  newPassword: string;
+}) {
+  const { data } = await apiClient.post<{ message: string }>("/auth/forgot-password/reset", body);
+  return data;
 }

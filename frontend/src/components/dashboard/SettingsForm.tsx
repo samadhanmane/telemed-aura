@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { Card } from "@/components/ui/card";
@@ -12,11 +14,106 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { fetchMyEmr, updateMyHealthProfile } from "@/lib/api/emr";
+import { updateAuthProfile } from "@/lib/api/auth";
+import { Loader2 } from "lucide-react";
 
 export function SettingsForm() {
   const user = useAuthStore((s) => s.user);
+  const setSession = useAuthStore((s) => s.setSession);
+  const token = useAuthStore((s) => s.token);
   const { theme, language, setLanguage } = useThemeStore();
+  const isPatient = user?.role === "patient";
+  const qc = useQueryClient();
+
+  const [name, setName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [location, setLocation] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [allergiesText, setAllergiesText] = useState("");
+  const [chronicText, setChronicText] = useState("");
+
+  const { data: emrData, isLoading: emrLoading } = useQuery({
+    queryKey: ["my-emr"],
+    queryFn: fetchMyEmr,
+    enabled: isPatient,
+  });
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setPhone(user.phone ?? "");
+    }
+  }, [user?.id, user?.name, user?.phone]);
+
+  useEffect(() => {
+    const p = emrData?.emr.profile;
+    if (!p) return;
+    setLocation(p.location ?? "");
+    setAge(p.age != null ? String(p.age) : "");
+    setGender(p.gender ?? "");
+    setAllergiesText(p.allergies.join(", "));
+    setChronicText(p.chronicDiseases.join(", "));
+    setPhone(p.phone ?? phone);
+    setName(p.name);
+  }, [emrData?.emr.profile]);
+
+  const savePatient = useMutation({
+    mutationFn: async () => {
+      const allergies = allergiesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const chronicDiseases = chronicText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const profile = await updateMyHealthProfile({
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        location: location.trim() || undefined,
+        age: age ? Number(age) : undefined,
+        gender: gender || undefined,
+        allergies,
+        chronicDiseases,
+      });
+      return profile;
+    },
+    onSuccess: (profile) => {
+      if (user && token) {
+        setSession(
+          {
+            ...user,
+            name: profile.name,
+            phone: profile.phone,
+          },
+          token,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["my-emr"] });
+      toast.success("Health record and profile saved to EMR");
+    },
+    onError: () => toast.error("Could not save — check your connection"),
+  });
+
+  const saveDoctor = useMutation({
+    mutationFn: () => updateAuthProfile({ name: name.trim(), phone: phone.trim() || undefined }),
+    onSuccess: (updated) => {
+      if (token) setSession(updated, token);
+      toast.success("Profile saved");
+    },
+    onError: () => toast.error("Could not save profile"),
+  });
+
+  const handleSaveProfile = () => {
+    if (isPatient) savePatient.mutate();
+    else saveDoctor.mutate();
+  };
+
+  const saving = savePatient.isPending || saveDoctor.isPending;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -25,7 +122,7 @@ export function SettingsForm() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
             <Label>Full name</Label>
-            <Input defaultValue={user?.name} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
@@ -33,16 +130,85 @@ export function SettingsForm() {
           </div>
           <div className="space-y-2">
             <Label>Phone</Label>
-            <Input defaultValue={user?.phone} />
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
+          {isPatient && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Location (village / district)</Label>
+              <Input value={location} onChange={(e) => setLocation(e.target.value)} />
+            </div>
+          )}
         </div>
         <Button
           className="mt-4 bg-gradient-primary text-primary-foreground"
-          onClick={() => toast.success("Profile saved")}
+          onClick={handleSaveProfile}
+          disabled={saving || (isPatient && emrLoading)}
         >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save profile
         </Button>
       </Card>
+
+      {isPatient && (
+        <Card className="rounded-2xl border-border/60 p-6 shadow-soft">
+          <h2 className="text-base font-semibold">Health record (EMR)</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Used in consultations, AI scans, and your digital health record.
+          </p>
+          {emrLoading ? (
+            <div className="mt-4 flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Age</Label>
+                <Input type="number" min={0} max={120} value={age} onChange={(e) => setAge(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Gender</Label>
+                <Select value={gender || "unset"} onValueChange={(v) => setGender(v === "unset" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">—</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Allergies (comma-separated)</Label>
+                <Textarea
+                  value={allergiesText}
+                  onChange={(e) => setAllergiesText(e.target.value)}
+                  placeholder="e.g. Penicillin, Peanuts"
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Chronic conditions (comma-separated)</Label>
+                <Textarea
+                  value={chronicText}
+                  onChange={(e) => setChronicText(e.target.value)}
+                  placeholder="e.g. Diabetes, Hypertension"
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={handleSaveProfile}
+            disabled={saving || emrLoading}
+          >
+            Save health record
+          </Button>
+        </Card>
+      )}
 
       <Card className="rounded-2xl border-border/60 p-6 shadow-soft">
         <h2 className="text-base font-semibold">Security</h2>
@@ -56,7 +222,7 @@ export function SettingsForm() {
             <Input type="password" />
           </div>
         </div>
-        <Button variant="outline" className="mt-4" onClick={() => toast.success("Password updated")}>
+        <Button variant="outline" className="mt-4" onClick={() => toast.info("Password change coming soon")}>
           Change password
         </Button>
       </Card>
@@ -92,13 +258,6 @@ export function SettingsForm() {
               <p className="text-xs text-muted-foreground">Appointments & prescriptions</p>
             </div>
             <Switch defaultChecked />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Large text</p>
-              <p className="text-xs text-muted-foreground">Accessibility — easier reading</p>
-            </div>
-            <Switch />
           </div>
         </div>
       </Card>

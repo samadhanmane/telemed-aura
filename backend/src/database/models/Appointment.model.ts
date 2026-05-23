@@ -19,6 +19,7 @@ export interface IAppointment extends Document {
   mode: "video";
   roomId?: string;
   notes?: string;
+  priority?: "normal" | "urgent";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +40,7 @@ const appointmentSchema = new Schema<IAppointment>(
     mode: { type: String, default: "video" },
     roomId: { type: String },
     notes: { type: String },
+    priority: { type: String, enum: ["normal", "urgent"], default: "normal" },
   },
   { timestamps: true },
 );

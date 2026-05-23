@@ -1,14 +1,30 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNotificationStore } from "@/stores/notification-store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/lib/api/notifications";
 
 export function useNotifications() {
-  const notifications = useNotificationStore((s) => s.notifications);
   return useQuery({
     queryKey: ["notifications"],
-    queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return notifications;
-    },
-    initialData: notifications,
+    queryFn: fetchNotifications,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }

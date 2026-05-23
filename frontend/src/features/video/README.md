@@ -1,15 +1,17 @@
-# Video consult (frontend)
+# Video consultations (WebRTC)
 
-Integrates with `backend/services/video/` signaling.
+Rural-optimized telehealth calls on the main API (`/signaling` + `/api/v1/video/*`).
 
-Configure `frontend/.env`: `VITE_VIDEO_SERVICE_URL`, `VITE_VIDEO_SIGNALING_PATH`.
+## Low-bandwidth design
 
-Planned components:
+1. **Start low** — default 240p (`VIDEO_START_TIER=low`) to save data in villages.
+2. **Adaptive bitrate** — `RTCRtpSender.setParameters({ maxBitrate })` per tier.
+3. **Dynamic resolution** — `applyConstraints` on the camera track (320×180 → 640×360 → 720p).
+4. **Audio-first fallback** — on high packet loss / RTT, video stops but audio continues.
+5. **Manual controls** — "Audio only" / "Try video" in the consult header.
 
-- `components/LocalVideo.tsx` — mirrored self view (`scaleX(-1)`)
-- `components/RemoteVideo.tsx` — doctor/patient remote stream
-- `hooks/useWebRTC.ts` — offer/answer/ICE via Socket.IO
-- `hooks/useAdaptiveBitrate.ts` — applies ladder from API
-- `pages/ConsultRoomPage.tsx` — join by appointment token
+Quality ladder is served from `GET /api/v1/video/media-config`.
 
-Low bandwidth: start audio-only fallback, reduce resolution via `RTCRtpSender.setParameters`.
+## Debug
+
+Set `VITE_VIDEO_DEBUG=true` in `frontend/.env` for ICE connection logs.

@@ -51,3 +51,90 @@ Production example:
 - `VITE_VIDEO_SERVICE_URL=https://api.yourdomain.com` (same host as API — signaling is on `/signaling`)
 
 WebSocket path `/signaling` must be enabled on your load balancer alongside `/api/v1`.
+
+## AI services (monolith + optional microservice)
+
+The main API embeds AI logic from `backend/services/ai/core` (symptom scan, triage, vitals risk, report OCR, prescription OCR).
+
+```bash
+# Optional — richer report summaries via Gemini
+GEMINI_API_KEY=
+AI_API_KEY=          # alias for GEMINI_API_KEY
+AI_MODEL=gemini-2.0-flash
+
+# Standalone AI microservice (optional)
+AI_SERVICE_URL=http://localhost:4002
+AI_PORT=4002
+npm run ai:dev
+```
+
+### Cloudinary (file storage)
+
+Medical PDFs and prescription images are uploaded to **Cloudinary**, then AI downloads from the Cloudinary URL for OCR/analysis. MongoDB stores metadata + `fileUrl` + `cloudinaryPublicId` + AI results — not the binary file.
+
+```bash
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+| Endpoint | Flow |
+|----------|------|
+| `POST /api/v1/clinical/reports` (file) | Cloudinary → fetch → AI report analysis → `MedicalReport` |
+| `POST /api/v1/ai/prescription-ocr/file` | Cloudinary → fetch → OCR → `PrescriptionUpload` |
+| `GET /api/v1/ai/prescription-uploads` | List saved prescription images for patient |
+
+Limits: reports 10MB, prescriptions 8MB. Formats: PDF, PNG, JPG.
+
+## WebRTC / TURN (production)
+
+Video calls use **Socket.io signaling** on the main API (`/signaling`) and ICE servers from `GET /api/v1/video/ice-servers`.
+
+**STUN alone is not enough** for many rural/mobile NAT networks. Configure TURN in `backend/.env`:
+
+```bash
+STUN_URL=stun:stun.l.google.com:19302
+TURN_URL=turn:your-turn.example.com:3478?transport=udp,turn:your-turn.example.com:3478?transport=tcp
+TURN_USERNAME=your-turn-user
+TURN_CREDENTIAL=your-turn-secret
+```
+
+`TURN_URL` and `TURN_URLS` accept comma-separated relay URLs. All three TURN fields must be set or TURN is skipped.
+
+### Self-hosted coturn (example)
+
+```bash
+# Ubuntu — install coturn, edit /etc/turnserver.conf
+listening-port=3478
+fingerprint
+lt-cred-mech
+user=telemed:YOUR_STRONG_SECRET
+realm=telemed.example.com
+```
+
+Then set `TURN_URL=turn:YOUR_PUBLIC_IP:3478`, `TURN_USERNAME=telemed`, `TURN_CREDENTIAL=YOUR_STRONG_SECRET`.
+
+Open UDP/TCP **3478** (and TLS 5349 if used) on your firewall. On AWS, use an Elastic IP on EC2 or a managed TURN provider.
+
+Frontend shows a warning during calls when TURN is not configured. Set `VITE_VIDEO_DEBUG=true` to log ICE state in the browser console.
+
+## Low-bandwidth video (rural)
+
+Consultations use **WebRTC adaptive quality** (not a separate Jitsi/LiveKit server):
+
+| Network | Behavior |
+|---------|----------|
+| Good | Upgrades toward HD (capped by `VIDEO_MAX_BITRATE_KBPS`) |
+| Weak | Steps down 360p → 240p |
+| Very weak | **Audio-only** — call continues without disconnecting |
+
+```bash
+VIDEO_MIN_BITRATE_KBPS=120
+VIDEO_MAX_BITRATE_KBPS=500
+VIDEO_START_TIER=low          # low | medium | high
+VIDEO_AUDIO_FALLBACK=true
+```
+
+Client loads `GET /api/v1/video/media-config` and applies `RTCRtpSender.setParameters` + `applyConstraints` every ~4s based on packet loss and RTT.
+
+During a call, users see quality badge (240p / 360p / HD / Audio only) and can manually switch to audio or retry video.

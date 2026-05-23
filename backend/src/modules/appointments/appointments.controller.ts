@@ -21,6 +21,20 @@ export async function create(req: AuthRequest, res: Response) {
   }
 }
 
+export async function getOne(req: AuthRequest, res: Response) {
+  try {
+    const appointment = await appointmentsService.getAppointmentById(
+      String(req.params.id),
+      req.user!.userId,
+      req.user!.role,
+    );
+    return res.json({ appointment });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Not found";
+    return res.status(404).json({ error: msg });
+  }
+}
+
 export async function list(req: AuthRequest, res: Response) {
   const appointments = await appointmentsService.listAppointments(
     req.user!.userId,
@@ -66,6 +80,7 @@ export async function endVideoSession(req: AuthRequest, res: Response) {
       String(req.params.id),
       req.user!.userId,
       req.user!.role,
+      req.body,
     );
     return res.json({ appointment });
   } catch (e) {

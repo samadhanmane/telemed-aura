@@ -29,7 +29,6 @@ export interface Appointment {
   time: string;
   mode: "video" | "in-person";
   status: AppointmentStatus;
-  fee: string;
 }
 
 export interface Doctor {
@@ -38,7 +37,6 @@ export interface Doctor {
   specialization: string;
   experience: string;
   rating: number;
-  fee: string;
   availability: string;
   image?: string;
 }

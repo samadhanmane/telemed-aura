@@ -1,9 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { getMobileNav } from "@/lib/nav";
 import type { UserRole } from "@/types/healthcare";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav({ role }: { role: UserRole }) {
+  const { t } = useTranslation();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = getMobileNav(role);
 
@@ -24,7 +26,7 @@ export function MobileBottomNav({ role }: { role: UserRole }) {
             )}
           >
             <Icon className={cn("h-5 w-5", active && "text-primary")} />
-            <span className="truncate px-1">{item.label.split(" ")[0]}</span>
+            <span className="truncate px-1">{(item.label ?? t(item.labelKey)).split(" ")[0]}</span>
           </Link>
         );
       })}

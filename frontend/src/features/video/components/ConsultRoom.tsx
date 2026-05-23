@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useVideoCall } from "../hooks/useVideoCall";
+import { LocalConsultVideo, RemoteConsultVideo } from "./ConsultVideo";
 
 export function ConsultRoom({
   appointmentId,
@@ -128,12 +129,7 @@ export function ConsultRoom({
         <>
           <div className="relative flex flex-1 flex-col p-4">
             <Card className="relative min-h-[50vh] flex-1 overflow-hidden rounded-2xl bg-muted">
-              <video
-                ref={remoteRef}
-                autoPlay
-                playsInline
-                className="h-full w-full object-cover"
-              />
+              <RemoteConsultVideo videoRef={remoteRef} />
               {!peerVideoOn && status === "live" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
                   <p className="text-sm text-muted-foreground">Camera off</p>
@@ -157,12 +153,7 @@ export function ConsultRoom({
             </Card>
 
             <Card className="absolute bottom-28 right-6 z-10 h-36 w-28 overflow-hidden rounded-xl border-2 border-primary shadow-lg md:bottom-8">
-              <video
-                ref={localRef}
-                autoPlay
-                playsInline
-                className={`h-full w-full object-cover ${videoOn ? "scale-x-[-1]" : "hidden"}`}
-              />
+              <LocalConsultVideo videoRef={localRef} visible={videoOn} />
               {!videoOn && (
                 <div className="flex h-full items-center justify-center bg-muted text-xs text-muted-foreground">
                   Camera off

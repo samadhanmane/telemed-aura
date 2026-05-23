@@ -20,7 +20,7 @@ export async function renderTemplate(payload: EmailPayload) {
       return aiAlertTemplates(payload);
     default:
       return {
-        subject: "Telemed Aura",
+        subject: "Telemed",
         html: "<p>Notification</p>",
         text: "Notification",
       };

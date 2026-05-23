@@ -3,12 +3,14 @@ import { HeartPulse, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import type { NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuthStore } from "@/stores/auth-store";
 import type { UserRole } from "@/types/healthcare";
 
 function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
+  const { t } = useTranslation();
   return (
     <nav className="flex-1 space-y-1 p-3">
       {items.map((item) => {
@@ -31,7 +33,7 @@ function NavLinks({ items, pathname, onNavigate }: { items: NavItem[]; pathname:
             )}
           >
             <Icon className={cn("h-4 w-4", active && "text-primary")} />
-            {item.label}
+            {item.label ?? t(item.labelKey)}
           </Link>
         );
       })}
@@ -58,7 +60,7 @@ export function AppSidebar({
         <HeartPulse className="h-5 w-5" />
       </div>
       <div className="leading-tight">
-        <div className="text-sm font-semibold">Telehealth</div>
+        <div className="text-sm font-semibold">Telemed</div>
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
       </div>
     </div>

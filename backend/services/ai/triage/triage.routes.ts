@@ -1,6 +1,10 @@
 import { Router } from "express";
+import { computeSeverity } from "./triage.service.js";
 
 export const triageRoutes = Router();
 
-/** Returns severity for booking priority queue */
-triageRoutes.post("/severity", (_req, res) => res.status(501).json({ message: "Not implemented" }));
+triageRoutes.post("/severity", (req, res) => {
+  const { findings, emergency, risk } = req.body;
+  const result = computeSeverity(findings ?? [], Boolean(emergency), Number(risk) || 50);
+  return res.json({ success: true, ...result });
+});

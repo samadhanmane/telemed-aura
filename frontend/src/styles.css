@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* AI Rural Telehealth — premium healthcare design system */
+/* Telemed — healthcare design system */
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;

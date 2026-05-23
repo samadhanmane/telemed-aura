@@ -5,6 +5,9 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# Tesseract OCR language data (download locally; do not commit)
+*.traineddata
 *.log
 .DS_Store
 uploads/

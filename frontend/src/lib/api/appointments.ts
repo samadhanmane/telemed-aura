@@ -12,9 +12,10 @@ export type ApiAppointment = {
   date: string;
   time: string;
   status: AppointmentStatus;
-  fee: string;
   mode: string;
   roomId?: string;
+  notes?: string;
+  priority?: "normal" | "urgent";
 };
 
 export async function fetchAppointments() {
@@ -53,9 +54,21 @@ export async function createVideoSession(appointmentId: string) {
   return data;
 }
 
-export async function endVideoSession(appointmentId: string) {
+export async function endVideoSession(
+  appointmentId: string,
+  emrPayload?: {
+    conclusion?: string;
+    vitals?: {
+      bloodPressureSystolic?: number;
+      bloodPressureDiastolic?: number;
+      sugarLevel?: number;
+      oxygenLevel?: number;
+    };
+  },
+) {
   const { data } = await apiClient.post<{ appointment: ApiAppointment }>(
     `/appointments/${appointmentId}/video-session/end`,
+    emrPayload ?? {},
   );
   return data;
 }

@@ -1,17 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import {
-  Search,
-  Bell,
-  Moon,
-  Sun,
-  Globe,
-  LogOut,
-  User,
-  Settings,
-} from "lucide-react";
+import { Search, Bell, Moon, Sun, LogOut, User, Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores/auth-store";
 import { useThemeStore } from "@/stores/theme-store";
-import { useNotificationStore } from "@/stores/notification-store";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+} from "@/lib/api/hooks/use-notifications";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,16 +20,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getRoleTitle } from "@/lib/nav";
+import { useRoleTitle } from "@/hooks/use-translated-nav";
 import type { UserRole } from "@/types/healthcare";
 import { cn } from "@/lib/utils";
 
 export function DashboardNavbar({ role }: { role: UserRole }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { theme, toggleTheme, language, setLanguage } = useThemeStore();
-  const notifications = useNotificationStore((s) => s.notifications);
-  const markRead = useNotificationStore((s) => s.markRead);
+  const { t } = useTranslation();
+  const { theme, toggleTheme } = useThemeStore();
+  const roleTitle = useRoleTitle(role);
+  const { data: notifications = [] } = useNotifications();
+  const markRead = useMarkNotificationRead();
   const unread = notifications.filter((n) => !n.read).length;
   const initials = user?.name
     ?.split(" ")
@@ -49,29 +47,25 @@ export function DashboardNavbar({ role }: { role: UserRole }) {
         ? "/doctor/settings"
         : "/admin/settings";
 
+  const notificationsPath =
+    role === "patient"
+      ? "/patient/notifications"
+      : role === "doctor"
+        ? "/doctor/notifications"
+        : "/admin/notifications";
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl md:px-6">
       <div className="relative hidden flex-1 max-w-md md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search doctors, prescriptions, reports…"
+          placeholder={t("common.search")}
           className="border-border/60 bg-surface/80 pl-9"
         />
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="hidden gap-1 sm:flex">
-              <Globe className="h-4 w-4" />
-              {language === "en" ? "EN" : "हि"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setLanguage("en")}>English</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setLanguage("hi")}>हिंदी</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <LanguageSwitcher />
 
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
           {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
@@ -89,15 +83,23 @@ export function DashboardNavbar({ role }: { role: UserRole }) {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-0" align="end">
-            <div className="border-b border-border/60 px-4 py-3">
-              <p className="text-sm font-semibold">Notifications</p>
+            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+              <p className="text-sm font-semibold">{t("common.notifications")}</p>
+              <Link to={notificationsPath} className="text-xs text-primary hover:underline">
+                {t("common.viewAll")}
+              </Link>
             </div>
             <ScrollArea className="h-72">
+              {notifications.length === 0 && (
+                <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  {t("common.noNotifications")}
+                </p>
+              )}
               {notifications.slice(0, 5).map((n) => (
                 <button
                   key={n.id}
                   type="button"
-                  onClick={() => markRead(n.id)}
+                  onClick={() => markRead.mutate(n.id)}
                   className={cn(
                     "w-full border-b border-border/40 px-4 py-3 text-left transition-colors hover:bg-muted/50",
                     !n.read && "bg-primary-soft/30",
@@ -123,21 +125,21 @@ export function DashboardNavbar({ role }: { role: UserRole }) {
               </div>
               <div className="hidden text-left leading-tight sm:block">
                 <div className="text-xs font-semibold">{user?.name ?? "User"}</div>
-                <div className="text-[10px] text-muted-foreground">{getRoleTitle(role)}</div>
+                <div className="text-[10px] text-muted-foreground">{roleTitle}</div>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>My account</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("common.myAccount")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to={settingsPath}>
-                <User className="mr-2 h-4 w-4" /> Profile
+                <User className="mr-2 h-4 w-4" /> {t("common.profile")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to={settingsPath}>
-                <Settings className="mr-2 h-4 w-4" /> Settings
+                <Settings className="mr-2 h-4 w-4" /> {t("common.settings")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -147,7 +149,7 @@ export function DashboardNavbar({ role }: { role: UserRole }) {
                 window.location.href = "/login";
               }}
             >
-              <LogOut className="mr-2 h-4 w-4" /> Sign out
+              <LogOut className="mr-2 h-4 w-4" /> {t("common.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

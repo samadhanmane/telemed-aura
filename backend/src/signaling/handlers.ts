@@ -76,12 +76,20 @@ export function registerSignalingHandlers(io: Server) {
 
     socket.on(
       E.MEDIA_STATE,
-      (payload: { roomId: string; audio: boolean; video: boolean }) => {
+      (payload: {
+        roomId: string;
+        audio: boolean;
+        video: boolean;
+        qualityTier?: string;
+        audioOnlyFallback?: boolean;
+      }) => {
         if (payload.roomId !== session.appointmentId) return;
         socket.to(payload.roomId).emit(E.MEDIA_STATE, {
           role: session.role,
           audio: payload.audio,
           video: payload.video,
+          qualityTier: payload.qualityTier,
+          audioOnlyFallback: payload.audioOnlyFallback,
         });
       },
     );

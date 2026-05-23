@@ -1,6 +1,11 @@
-import type { SeverityLevel } from "./triage.types.js";
+import { computeTriageSeverity, severityToPriority } from "../core/triage.js";
+import type { SeverityLevel } from "../core/types.js";
 
-/** Map scanner output → low | moderate | high | critical */
-export function computeSeverity(_findings: string[]): SeverityLevel {
-  return "moderate";
+export function computeSeverity(
+  findings: string[],
+  emergency = false,
+  risk = 50,
+): { severity: SeverityLevel; priority: number } {
+  const severity = computeTriageSeverity(findings, emergency, risk);
+  return { severity, priority: severityToPriority(severity, emergency) };
 }

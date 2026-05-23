@@ -15,3 +15,26 @@ export async function slots(req: AuthRequest, res: Response) {
   const slots = await doctorsService.getAvailableSlots(String(id), date);
   return res.json({ date, slots });
 }
+
+export async function getMyAvailability(req: AuthRequest, res: Response) {
+  try {
+    const availability = await doctorsService.getMyAvailability(req.user!.userId);
+    return res.json({ availability });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to load availability";
+    return res.status(400).json({ error: msg });
+  }
+}
+
+export async function updateMyAvailability(req: AuthRequest, res: Response) {
+  try {
+    const availability = await doctorsService.updateMyAvailability(
+      req.user!.userId,
+      req.body,
+    );
+    return res.json({ availability });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to save availability";
+    return res.status(400).json({ error: msg });
+  }
+}

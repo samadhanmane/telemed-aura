@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { syncI18nLanguage } from "@/i18n";
 
 type Theme = "light" | "dark";
-type Language = "en" | "hi";
+export type Language = "en" | "hi";
 
 interface ThemeState {
   theme: Theme;
@@ -31,12 +32,18 @@ export const useThemeStore = create<ThemeState>()(
         applyTheme(next);
         set({ theme: next });
       },
-      setLanguage: (language) => set({ language }),
+      setLanguage: (language) => {
+        syncI18nLanguage(language);
+        set({ language });
+      },
     }),
     {
       name: "telemed-theme",
       onRehydrateStorage: () => (state) => {
-        if (state) applyTheme(state.theme);
+        if (state) {
+          applyTheme(state.theme);
+          syncI18nLanguage(state.language);
+        }
       },
     },
   ),

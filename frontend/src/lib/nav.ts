@@ -8,57 +8,60 @@ import {
   Settings,
   Stethoscope,
   Users,
-  Video,
   Activity,
   UserCircle,
   BarChart3,
   Clock,
   Brain,
-  Shield,
   ClipboardList,
+  FolderHeart,
 } from "lucide-react";
 import type { UserRole } from "@/types/healthcare";
 
 export type NavItem = {
   to: string;
-  label: string;
+  labelKey: string;
+  /** Resolved label after i18n — set by useTranslatedNav */
+  label?: string;
   icon: typeof LayoutDashboard;
 };
 
 export const patientNav: NavItem[] = [
-  { to: "/patient", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/patient/appointments", label: "Appointments", icon: CalendarCheck },
-  { to: "/patient/doctors", label: "Doctors", icon: Stethoscope },
-  { to: "/patient/ai-scanner", label: "AI Health Scanner", icon: Sparkles },
-  { to: "/patient/reports", label: "Medical Reports", icon: FileText },
-  { to: "/patient/prescriptions", label: "Prescriptions", icon: Pill },
-  { to: "/patient/notifications", label: "Notifications", icon: Bell },
-  { to: "/patient/settings", label: "Settings", icon: Settings },
+  { to: "/patient", labelKey: "nav.patient.dashboard", icon: LayoutDashboard },
+  { to: "/patient/appointments", labelKey: "nav.patient.appointments", icon: CalendarCheck },
+  { to: "/patient/doctors", labelKey: "nav.patient.doctors", icon: Stethoscope },
+  { to: "/patient/ai-scanner", labelKey: "nav.patient.aiHealth", icon: Sparkles },
+  { to: "/patient/emr", labelKey: "nav.patient.emr", icon: FolderHeart },
+  { to: "/patient/doc-assistant", labelKey: "nav.patient.docAssistant", icon: Brain },
+  { to: "/patient/timeline", labelKey: "nav.patient.timeline", icon: Activity },
+  { to: "/patient/analytics", labelKey: "nav.patient.analytics", icon: BarChart3 },
+  { to: "/patient/notifications", labelKey: "nav.patient.notifications", icon: Bell },
+  { to: "/patient/settings", labelKey: "nav.patient.settings", icon: Settings },
 ];
 
 export const doctorNav: NavItem[] = [
-  { to: "/doctor", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/doctor/appointments", label: "Appointments", icon: CalendarCheck },
-  { to: "/doctor/patients", label: "Patients", icon: Users },
-  { to: "/doctor/prescriptions", label: "Prescriptions", icon: Pill },
-  { to: "/doctor/reports", label: "Reports", icon: FileText },
-  { to: "/doctor/availability", label: "Availability", icon: Clock },
-  { to: "/doctor/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/doctor/notifications", label: "Notifications", icon: Bell },
-  { to: "/doctor/settings", label: "Settings", icon: Settings },
+  { to: "/doctor", labelKey: "nav.doctor.dashboard", icon: LayoutDashboard },
+  { to: "/doctor/appointments", labelKey: "nav.doctor.appointments", icon: CalendarCheck },
+  { to: "/doctor/patients", labelKey: "nav.doctor.patients", icon: Users },
+  { to: "/doctor/prescriptions", labelKey: "nav.doctor.prescriptions", icon: Pill },
+  { to: "/doctor/reports", labelKey: "nav.doctor.reports", icon: FileText },
+  { to: "/doctor/availability", labelKey: "nav.doctor.availability", icon: Clock },
+  { to: "/doctor/analytics", labelKey: "nav.doctor.analytics", icon: BarChart3 },
+  { to: "/doctor/notifications", labelKey: "nav.doctor.notifications", icon: Bell },
+  { to: "/doctor/settings", labelKey: "nav.doctor.settings", icon: Settings },
 ];
 
 export const adminNav: NavItem[] = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/doctors", label: "Doctors", icon: Stethoscope },
-  { to: "/admin/patients", label: "Patients", icon: UserCircle },
-  { to: "/admin/appointments", label: "Appointments", icon: CalendarCheck },
-  { to: "/admin/reports", label: "Reports", icon: ClipboardList },
-  { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/admin/ai-monitoring", label: "AI Monitoring", icon: Brain },
-  { to: "/admin/notifications", label: "Notifications", icon: Bell },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin", labelKey: "nav.admin.dashboard", icon: LayoutDashboard },
+  { to: "/admin/users", labelKey: "nav.admin.users", icon: Users },
+  { to: "/admin/doctors", labelKey: "nav.admin.doctors", icon: Stethoscope },
+  { to: "/admin/patients", labelKey: "nav.admin.patients", icon: UserCircle },
+  { to: "/admin/appointments", labelKey: "nav.admin.appointments", icon: CalendarCheck },
+  { to: "/admin/reports", labelKey: "nav.admin.reports", icon: ClipboardList },
+  { to: "/admin/analytics", labelKey: "nav.admin.analytics", icon: BarChart3 },
+  { to: "/admin/ai-monitoring", labelKey: "nav.admin.aiMonitoring", icon: Brain },
+  { to: "/admin/notifications", labelKey: "nav.admin.notifications", icon: Bell },
+  { to: "/admin/settings", labelKey: "nav.admin.settings", icon: Settings },
 ];
 
 export function getNavForRole(role: UserRole): NavItem[] {
@@ -72,33 +75,38 @@ export function getNavForRole(role: UserRole): NavItem[] {
   }
 }
 
-export function getRoleTitle(role: UserRole): string {
+export function getRoleTitleKey(role: UserRole): string {
   switch (role) {
     case "doctor":
-      return "Doctor";
+      return "nav.role.doctor";
     case "admin":
-      return "Admin";
+      return "nav.role.admin";
     default:
-      return "Patient";
+      return "nav.role.patient";
   }
 }
 
-/** Mobile bottom nav — key items per role */
 export function getMobileNav(role: UserRole): NavItem[] {
   switch (role) {
     case "doctor":
       return doctorNav.filter((n) =>
-        ["/doctor", "/doctor/appointments", "/doctor/patients", "/doctor/settings"].includes(n.to),
+        ["/doctor", "/doctor/appointments", "/doctor/patients", "/doctor/notifications"].includes(
+          n.to,
+        ),
       );
     case "admin":
       return adminNav.filter((n) =>
-        ["/admin", "/admin/users", "/admin/analytics", "/admin/settings"].includes(n.to),
+        ["/admin", "/admin/doctors", "/admin/patients", "/admin/notifications"].includes(n.to),
       );
     default:
       return patientNav.filter((n) =>
-        ["/patient", "/patient/appointments", "/patient/ai-scanner", "/patient/settings"].includes(n.to),
+        [
+          "/patient",
+          "/patient/appointments",
+          "/patient/doctors",
+          "/patient/ai-scanner",
+          "/patient/notifications",
+        ].includes(n.to),
       );
   }
 }
-
-export { Activity, Video, Shield };

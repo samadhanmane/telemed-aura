@@ -4,12 +4,17 @@ import helmet from "helmet";
 import { apiRouter } from "./api/routes/index.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
 import { getDatabaseStatus } from "./database/connection.js";
+import { corsOriginCheck } from "./config/frontend-origins.js";
 
 export function createApp() {
   const app = express();
-  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
   app.use(helmet());
-  app.use(cors({ origin: frontendUrl, credentials: true }));
+  app.use(
+    cors({
+      origin: corsOriginCheck,
+      credentials: true,
+    }),
+  );
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
