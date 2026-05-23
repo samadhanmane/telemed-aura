@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchDoctorReports, type ClinicalReport } from "@/lib/api/clinical";
 import { resolveUploadUrl } from "@/lib/api/upload-url";
+import { DownloadFileButton } from "@/components/files/DownloadFileButton";
 import { ReportAnalysisPanel } from "@/components/reports/ReportAnalysisPanel";
 import { DoctorReportReviewForm } from "@/components/reports/DoctorReportReviewForm";
 
@@ -124,14 +125,23 @@ function DoctorReports() {
                           : "No image preview"}
                       </p>
                       {resolveUploadUrl(active.fileUrl) && (
-                        <a
-                          href={resolveUploadUrl(active.fileUrl)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 text-xs text-primary underline"
-                        >
-                          Open file
-                        </a>
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                          <a
+                            href={resolveUploadUrl(active.fileUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-primary underline"
+                          >
+                            Open
+                          </a>
+                          <DownloadFileButton
+                            fileUrl={active.fileUrl}
+                            fileName={active.name}
+                            label="Download"
+                            variant="link"
+                            className="h-auto p-0 text-xs"
+                          />
+                        </div>
                       )}
                     </>
                   )}

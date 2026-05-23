@@ -9,6 +9,7 @@ import { aiRoutes } from "../../modules/ai/ai.routes.js";
 import { notificationsRoutes } from "../../modules/notifications/notifications.routes.js";
 import { emrRoutes } from "../../modules/emr/emr.routes.js";
 import { reviewsRoutes } from "../../modules/reviews/reviews.routes.js";
+import { filesRoutes } from "../../modules/files/files.routes.js";
 
 export const apiRouter = Router();
 
@@ -22,3 +23,4 @@ apiRouter.use("/notifications", notificationsRoutes);
 apiRouter.use("/emr", emrRoutes);
 apiRouter.use("/video", videoRoutes);
 apiRouter.use("/reviews", reviewsRoutes);
+apiRouter.use("/files", filesRoutes);

@@ -44,6 +44,7 @@ import {
 } from "@/lib/api/doc-assistant";
 import { usePrescriptions } from "@/lib/api/hooks/use-prescriptions";
 import { resolveUploadUrl } from "@/lib/api/upload-url";
+import { DownloadFileButton } from "@/components/files/DownloadFileButton";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { toast } from "sonner";
 
@@ -403,11 +404,20 @@ function DocumentLibraryCard({ doc }: { doc: LibraryDocument }) {
       )}
 
       {resolveUploadUrl(doc.fileUrl) && (
-        <Button variant="link" size="sm" className="mt-2 h-auto p-0" asChild>
-          <a href={resolveUploadUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
-            <ExternalLink className="mr-1 h-3 w-3" /> Open file
-          </a>
-        </Button>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="link" size="sm" className="h-auto p-0" asChild>
+            <a href={resolveUploadUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
+              <ExternalLink className="mr-1 h-3 w-3" /> Open
+            </a>
+          </Button>
+          <DownloadFileButton
+            fileUrl={doc.fileUrl}
+            fileName={doc.name}
+            label="Download"
+            variant="link"
+            className="h-auto p-0"
+          />
+        </div>
       )}
     </Card>
   );

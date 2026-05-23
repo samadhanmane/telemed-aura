@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchAdminDashboard } from "@/lib/api/dashboard";
 import { resolveUploadUrl } from "@/lib/api/upload-url";
+import { DownloadFileButton } from "@/components/files/DownloadFileButton";
 
 export const Route = createFileRoute("/admin/")({
   beforeLoad: () => requireRole("admin"),
@@ -121,12 +122,20 @@ function AdminHome() {
                   </div>
                   <div className="flex gap-2">
                     {resolveUploadUrl(d.certificateUrl) && (
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={resolveUploadUrl(d.certificateUrl)} target="_blank" rel="noreferrer">
-                          <ExternalLink className="mr-1 h-3 w-3" />
-                          Certificate
-                        </a>
-                      </Button>
+                      <>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={resolveUploadUrl(d.certificateUrl)} target="_blank" rel="noreferrer">
+                            <ExternalLink className="mr-1 h-3 w-3" />
+                            Certificate
+                          </a>
+                        </Button>
+                        <DownloadFileButton
+                          fileUrl={d.certificateUrl}
+                          fileName={`${d.name}-certificate`}
+                          label="Download"
+                          size="sm"
+                        />
+                      </>
                     )}
                     <Button size="sm" asChild>
                       <Link to="/admin/doctors">Review</Link>

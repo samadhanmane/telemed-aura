@@ -27,6 +27,7 @@ import {
   type AdminDoctorRow,
 } from "@/lib/api/dashboard";
 import { resolveUploadUrl } from "@/lib/api/upload-url";
+import { DownloadFileButton } from "@/components/files/DownloadFileButton";
 
 export const Route = createFileRoute("/admin/doctors")({
   beforeLoad: () => requireRole("admin"),
@@ -76,15 +77,24 @@ function DoctorCard({
       </div>
       {d.bio && <p className="mt-3 text-xs text-muted-foreground line-clamp-3">{d.bio}</p>}
       {certUrl && (
-        <a
-          href={certUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          <ExternalLink className="h-3 w-3" />
-          View medical certificate
-        </a>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href={certUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View certificate
+          </a>
+          <DownloadFileButton
+            fileUrl={d.certificateUrl}
+            fileName={`${d.name}-certificate`}
+            label="Download"
+            variant="link"
+            className="h-auto p-0 text-xs"
+          />
+        </div>
       )}
       {d.submittedAt && (
         <p className="mt-2 text-[10px] text-muted-foreground">

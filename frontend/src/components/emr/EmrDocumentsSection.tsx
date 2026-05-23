@@ -10,6 +10,7 @@ import { ReportAnalysisPanel } from "@/components/reports/ReportAnalysisPanel";
 import { ReportScanProgressPanel } from "@/components/reports/ReportScanProgressPanel";
 import { DoctorReportReviewForm } from "@/components/reports/DoctorReportReviewForm";
 import { resolveUploadUrl } from "@/lib/api/upload-url";
+import { DownloadFileButton } from "@/components/files/DownloadFileButton";
 
 export function EmrDocumentsSection({
   emr,
@@ -98,11 +99,20 @@ export function EmrDocumentsSection({
                   />
                 )}
                 {resolveUploadUrl(r.fileUrl) && (
-                  <Button variant="link" size="sm" className="mt-2 h-auto p-0" asChild>
-                    <a href={resolveUploadUrl(r.fileUrl)} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-1 h-3 w-3" /> Open original file
-                    </a>
-                  </Button>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                      <a href={resolveUploadUrl(r.fileUrl)} target="_blank" rel="noreferrer">
+                        <ExternalLink className="mr-1 h-3 w-3" /> Open
+                      </a>
+                    </Button>
+                    <DownloadFileButton
+                      fileUrl={r.fileUrl}
+                      fileName={r.name}
+                      label="Download"
+                      variant="link"
+                      className="h-auto p-0"
+                    />
+                  </div>
                 )}
               </li>
             ))}
@@ -123,14 +133,23 @@ export function EmrDocumentsSection({
                   {u.medicines.map((m) => m.name).join(", ") || "—"}
                 </p>
                 {resolveUploadUrl(u.fileUrl) && (
-                  <a
-                    className="text-xs text-primary hover:underline"
-                    href={resolveUploadUrl(u.fileUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View file
-                  </a>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    <a
+                      className="text-xs text-primary hover:underline"
+                      href={resolveUploadUrl(u.fileUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open
+                    </a>
+                    <DownloadFileButton
+                      fileUrl={u.fileUrl}
+                      fileName={u.originalName}
+                      label="Download"
+                      variant="link"
+                      className="h-auto p-0 text-xs"
+                    />
+                  </div>
                 )}
               </li>
             ))}
