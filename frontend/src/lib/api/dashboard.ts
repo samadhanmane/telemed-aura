@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 
 export type PatientDashboard = {
   greeting: string;
@@ -25,39 +25,38 @@ export type PatientDashboard = {
 };
 
 export async function fetchPatientDashboard() {
-  const { data } = await apiClient.get<PatientDashboard>("/dashboard/patient");
-  return data;
+  const res = await apiClient.get("/dashboard/patient");
+  return extractResponseData<PatientDashboard>(res);
 }
 
 export async function fetchPatientTimeline() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/dashboard/patient/timeline");
+  const data = extractResponseData<{
     timeline: { id: string; type: string; title: string; subtitle: string; date: string; meta?: Record<string, unknown> }[];
-  }>("/dashboard/patient/timeline");
+  }>(res);
   return data.timeline;
 }
 
 export async function fetchPatientAnalytics() {
-  const { data } = await apiClient.get<{ analytics: Record<string, unknown> }>(
-    "/dashboard/patient/analytics",
-  );
+  const res = await apiClient.get("/dashboard/patient/analytics");
+  const data = extractResponseData<{ analytics: Record<string, unknown> }>(res);
   return data.analytics;
 }
 
 export async function fetchDoctorPatients() {
-  const { data } = await apiClient.get<{ patients: Record<string, unknown>[] }>(
-    "/dashboard/doctor/patients",
-  );
+  const res = await apiClient.get("/dashboard/doctor/patients");
+  const data = extractResponseData<{ patients: Record<string, unknown>[] }>(res);
   return data.patients;
 }
 
 export async function fetchDoctorDashboard() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/dashboard/doctor");
+  return extractResponseData<{
     stats: Record<string, number> & { rating?: number; reviewCount?: number };
     profile?: { specialty: string; verified: boolean; verificationStatus: string };
     queue: Record<string, unknown>[];
     emergencyAlerts: { id: string; risk: number; symptoms: string }[];
-  }>("/dashboard/doctor");
-  return data;
+  }>(res);
 }
 
 export type AdminDashboardData = {
@@ -76,24 +75,24 @@ export type AdminDashboardData = {
 };
 
 export async function fetchDoctorPatient(patientId: string) {
-  const { data } = await apiClient.get(`/dashboard/doctor/patients/${patientId}`);
-  return data;
+  const res = await apiClient.get(`/dashboard/doctor/patients/${patientId}`);
+  return extractResponseData(res);
 }
 
 export async function fetchDoctorAnalytics() {
-  const { data } = await apiClient.get<{ analytics: Record<string, unknown> }>(
-    "/dashboard/doctor/analytics",
-  );
+  const res = await apiClient.get("/dashboard/doctor/analytics");
+  const data = extractResponseData<{ analytics: Record<string, unknown> }>(res);
   return data.analytics;
 }
 
 export async function fetchAdminDashboard() {
-  const { data } = await apiClient.get<AdminDashboardData>("/dashboard/admin");
-  return data;
+  const res = await apiClient.get("/dashboard/admin");
+  return extractResponseData<AdminDashboardData>(res);
 }
 
 export async function fetchAdminUsers() {
-  const { data } = await apiClient.get<{ users: Record<string, unknown>[] }>("/dashboard/admin/users");
+  const res = await apiClient.get("/dashboard/admin/users");
+  const data = extractResponseData<{ users: Record<string, unknown>[] }>(res);
   return data.users;
 }
 
@@ -117,40 +116,34 @@ export type AdminDoctorRow = {
 };
 
 export async function fetchAdminDoctors(status?: "pending" | "approved" | "rejected" | "all") {
-  const { data } = await apiClient.get<{ doctors: AdminDoctorRow[] }>(
-    "/dashboard/admin/doctors",
-    { params: status ? { status } : {} },
-  );
+  const res = await apiClient.get("/dashboard/admin/doctors", {
+    params: status ? { status } : {},
+  });
+  const data = extractResponseData<{ doctors: AdminDoctorRow[] }>(res);
   return data.doctors;
 }
 
 export async function approveDoctorRegistration(doctorId: string) {
-  const { data } = await apiClient.patch<{ id: string; verificationStatus: string }>(
-    `/dashboard/admin/doctors/${doctorId}/approve`,
-  );
-  return data;
+  const res = await apiClient.patch(`/dashboard/admin/doctors/${doctorId}/approve`);
+  return extractResponseData<{ id: string; verificationStatus: string }>(res);
 }
 
 export async function rejectDoctorRegistration(doctorId: string, reason?: string) {
-  const { data } = await apiClient.patch<{ id: string; message: string }>(
-    `/dashboard/admin/doctors/${doctorId}/reject`,
-    { reason },
-  );
-  return data;
+  const res = await apiClient.patch(`/dashboard/admin/doctors/${doctorId}/reject`, { reason });
+  return extractResponseData<{ id: string; message: string }>(res);
 }
 
 export async function fetchAdminPatients() {
-  const { data } = await apiClient.get<{ patients: Record<string, unknown>[] }>(
-    "/dashboard/admin/patients",
-  );
+  const res = await apiClient.get("/dashboard/admin/patients");
+  const data = extractResponseData<{ patients: Record<string, unknown>[] }>(res);
   return data.patients;
 }
 
 export async function fetchAdminAiMonitoring() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/dashboard/admin/ai-monitoring");
+  return extractResponseData<{
     stats: { scansToday: number; urgentCases: number; totalScans: number };
     symptomTrends: { symptom: string; count: number }[];
     criticalAlerts: { id: string; risk: number; symptoms: string }[];
-  }>("/dashboard/admin/ai-monitoring");
-  return data;
+  }>(res);
 }

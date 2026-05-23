@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import type { ApiAppointment } from "./appointments";
 
 export type PatientSeverity = {
@@ -63,18 +63,18 @@ export type PatientCriticalAlert = {
 };
 
 export async function fetchDoctorTriageQueue() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/clinical/doctor/triage-queue");
+  return extractResponseData<{
     totalUpcoming: number;
     overloaded: boolean;
     threshold: number;
     queue: TriageQueueItem[];
-  }>("/clinical/doctor/triage-queue");
-  return data;
+  }>(res);
 }
 
 export async function fetchCriticalBoard() {
-  const { data } = await apiClient.get<CriticalBoard>("/clinical/doctor/critical-patients");
-  return data;
+  const res = await apiClient.get("/clinical/doctor/critical-patients");
+  return extractResponseData<CriticalBoard>(res);
 }
 
 /** @deprecated use fetchCriticalBoard */
@@ -84,9 +84,8 @@ export async function fetchCriticalPatients() {
 }
 
 export async function fetchPatientSeverity(patientId: string) {
-  const { data } = await apiClient.get<{ severity: PatientSeverity }>(
-    `/clinical/patients/${patientId}/severity`,
-  );
+  const res = await apiClient.get(`/clinical/patients/${patientId}/severity`);
+  const data = extractResponseData<{ severity: PatientSeverity }>(res);
   return data.severity;
 }
 
@@ -96,11 +95,8 @@ export async function acceptCriticalPatient(body: {
   time: string;
   specialty?: string;
 }) {
-  const { data } = await apiClient.post<AcceptCriticalResult>(
-    "/clinical/doctor/accept-critical",
-    body,
-  );
-  return data;
+  const res = await apiClient.post("/clinical/doctor/accept-critical", body);
+  return extractResponseData<AcceptCriticalResult>(res);
 }
 
 export async function urgentBookConsult(body: {
@@ -110,8 +106,8 @@ export async function urgentBookConsult(body: {
   specialty?: string;
   rescheduleOtherAppointmentId?: string;
 }) {
-  const { data } = await apiClient.post<AcceptCriticalResult>("/clinical/doctor/urgent-book", body);
-  return data;
+  const res = await apiClient.post("/clinical/doctor/urgent-book", body);
+  return extractResponseData<AcceptCriticalResult>(res);
 }
 
 export async function rescheduleConsult(body: {
@@ -121,27 +117,24 @@ export async function rescheduleConsult(body: {
   autoNextSlot?: boolean;
   reason?: string;
 }) {
-  const { data } = await apiClient.post<{ appointment: ApiAppointment }>(
-    "/clinical/doctor/reschedule",
-    body,
-  );
+  const res = await apiClient.post("/clinical/doctor/reschedule", body);
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
   return data.appointment;
 }
 
 export async function fetchNextFreeSlot(date?: string) {
-  const { data } = await apiClient.get<{ slot: { date: string; time: string } | null }>(
-    "/clinical/doctor/next-free-slot",
-    { params: date ? { date } : {} },
-  );
+  const res = await apiClient.get("/clinical/doctor/next-free-slot", {
+    params: date ? { date } : {},
+  });
+  const data = extractResponseData<{ slot: { date: string; time: string } | null }>(res);
   return data.slot;
 }
 
 export async function fetchPatientCriticalAlert(doctorId?: string, date?: string) {
-  const { data } = await apiClient.get<{ alert: PatientCriticalAlert | null; slots: string[] }>(
-    "/clinical/patient/critical-alert",
-    { params: doctorId ? { doctorId, date } : {} },
-  );
-  return data;
+  const res = await apiClient.get("/clinical/patient/critical-alert", {
+    params: doctorId ? { doctorId, date } : {},
+  });
+  return extractResponseData<{ alert: PatientCriticalAlert | null; slots: string[] }>(res);
 }
 
 export async function dismissPatientCriticalAlert() {
@@ -149,9 +142,6 @@ export async function dismissPatientCriticalAlert() {
 }
 
 export async function patientCriticalBook(body: { doctorId: string; date: string; time: string }) {
-  const { data } = await apiClient.post<AcceptCriticalResult>(
-    "/clinical/patient/critical-book",
-    body,
-  );
-  return data;
+  const res = await apiClient.post("/clinical/patient/critical-book", body);
+  return extractResponseData<AcceptCriticalResult>(res);
 }

@@ -1,95 +1,76 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../../shared/middleware/auth.middleware.js";
 import * as appointmentsService from "./appointments.service.js";
+import { asyncHandler } from "../../shared/utils/async-handler.js";
+import { sendSuccess } from "../../shared/utils/response.js";
+import { assertFutureAppointmentDate } from "../../shared/validations/appointment.schemas.js";
 
-export async function create(req: AuthRequest, res: Response) {
-  try {
-    const { doctorId, date, time, specialty } = req.body;
-    if (!doctorId || !date || !time || !specialty) {
-      return res.status(400).json({ error: "doctorId, date, time, specialty required" });
-    }
-    const appointment = await appointmentsService.createAppointment(req.user!.userId, {
-      doctorId,
-      date,
-      time,
-      specialty,
-    });
-    return res.status(201).json({ appointment });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Booking failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const create = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { doctorId, date, time, specialty } = req.body;
+  assertFutureAppointmentDate(date, time);
+  const appointment = await appointmentsService.createAppointment(req.user!.userId, {
+    doctorId,
+    date,
+    time,
+    specialty,
+  });
+  return sendSuccess(res, "Appointment booked successfully", { appointment }, 201);
+});
 
-export async function getOne(req: AuthRequest, res: Response) {
-  try {
-    const appointment = await appointmentsService.getAppointmentById(
-      String(req.params.id),
-      req.user!.userId,
-      req.user!.role,
-    );
-    return res.json({ appointment });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Not found";
-    return res.status(404).json({ error: msg });
-  }
-}
+export const getOne = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const appointment = await appointmentsService.getAppointmentById(
+    String(req.params.id),
+    req.user!.userId,
+    req.user!.role,
+  );
+  return sendSuccess(res, "Appointment loaded", { appointment });
+});
 
-export async function list(req: AuthRequest, res: Response) {
+export const list = asyncHandler(async (req: AuthRequest, res: Response) => {
   const appointments = await appointmentsService.listAppointments(
     req.user!.userId,
     req.user!.role,
   );
-  return res.json({ appointments });
-}
+  return sendSuccess(res, "Appointments loaded", { appointments });
+});
 
-export async function update(req: AuthRequest, res: Response) {
-  try {
-    const { status, conclusion, vitals } = req.body;
-    if (!status) return res.status(400).json({ error: "status required" });
-    const appointment = await appointmentsService.updateStatus(
-      String(req.params.id),
-      req.user!.userId,
-      req.user!.role,
-      status,
-      status === "completed" ? { conclusion, vitals } : undefined,
-    );
-    return res.json({ appointment });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Update failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const update = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status, conclusion, vitals } = req.body;
+  const appointment = await appointmentsService.updateStatus(
+    String(req.params.id),
+    req.user!.userId,
+    req.user!.role,
+    status,
+    status === "completed" ? { conclusion, vitals } : undefined,
+  );
+  const message =
+    status === "confirmed"
+      ? "Appointment confirmed successfully"
+      : status === "cancelled"
+        ? "Appointment cancelled"
+        : status === "completed"
+          ? "Consultation marked as completed"
+          : "Appointment updated";
+  return sendSuccess(res, message, { appointment });
+});
 
-export async function videoSession(req: AuthRequest, res: Response) {
-  try {
-    const result = await appointmentsService.createVideoSession(
-      String(req.params.id),
-      req.user!.userId,
-      req.user!.role,
-    );
-    return res.json(result);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Session denied";
-    return res.status(403).json({ error: msg });
-  }
-}
+export const videoSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await appointmentsService.createVideoSession(
+    String(req.params.id),
+    req.user!.userId,
+    req.user!.role,
+  );
+  return sendSuccess(res, "Video session ready", result);
+});
 
-export async function leaveVideoSession(req: AuthRequest, res: Response) {
-  try {
-    const appointment = await appointmentsService.leaveVideoSession(
-      String(req.params.id),
-      req.user!.userId,
-      req.user!.role,
-      req.body,
-    );
-    return res.json({ appointment });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not leave session";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const leaveVideoSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const appointment = await appointmentsService.leaveVideoSession(
+    String(req.params.id),
+    req.user!.userId,
+    req.user!.role,
+    req.body,
+  );
+  return sendSuccess(res, "Left consultation", { appointment });
+});
 
-export async function endVideoSession(req: AuthRequest, res: Response) {
-  return leaveVideoSession(req, res);
-}
+export const endVideoSession = leaveVideoSession;

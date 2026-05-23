@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 
 export type ApiNotification = {
   id: string;
@@ -10,7 +10,8 @@ export type ApiNotification = {
 };
 
 export async function fetchNotifications() {
-  const { data } = await apiClient.get<{ notifications: ApiNotification[] }>("/notifications");
+  const res = await apiClient.get("/notifications");
+  const data = extractResponseData<{ notifications: ApiNotification[] }>(res);
   return data.notifications;
 }
 

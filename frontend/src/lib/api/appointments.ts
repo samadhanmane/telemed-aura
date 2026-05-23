@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import type { AppointmentStatus } from "@/types/healthcare";
 
 export type ApiAppointment = {
@@ -19,7 +19,8 @@ export type ApiAppointment = {
 };
 
 export async function fetchAppointments() {
-  const { data } = await apiClient.get<{ appointments: ApiAppointment[] }>("/appointments");
+  const res = await apiClient.get("/appointments");
+  const data = extractResponseData<{ appointments: ApiAppointment[] }>(res);
   return data.appointments;
 }
 
@@ -29,7 +30,8 @@ export async function bookAppointment(body: {
   time: string;
   specialty: string;
 }) {
-  const { data } = await apiClient.post<{ appointment: ApiAppointment }>("/appointments", body);
+  const res = await apiClient.post("/appointments", body);
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
   return data.appointment;
 }
 
@@ -46,10 +48,11 @@ export async function updateAppointmentStatus(
     };
   },
 ) {
-  const { data } = await apiClient.patch<{ appointment: ApiAppointment }>(`/appointments/${id}`, {
+  const res = await apiClient.patch(`/appointments/${id}`, {
     status,
     ...emr,
   });
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
   return data.appointment;
 }
 
@@ -61,10 +64,8 @@ export type VideoSessionResponse = {
 };
 
 export async function createVideoSession(appointmentId: string) {
-  const { data } = await apiClient.post<VideoSessionResponse>(
-    `/appointments/${appointmentId}/video-session`,
-  );
-  return data;
+  const res = await apiClient.post(`/appointments/${appointmentId}/video-session`);
+  return extractResponseData<VideoSessionResponse>(res);
 }
 
 export async function leaveVideoSession(
@@ -79,11 +80,12 @@ export async function leaveVideoSession(
     };
   },
 ) {
-  const { data } = await apiClient.post<{ appointment: ApiAppointment }>(
+  const res = await apiClient.post(
     `/appointments/${appointmentId}/video-session/leave`,
     draft ?? {},
   );
-  return data;
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
+  return data.appointment;
 }
 
 /** @deprecated Prefer leaveVideoSession */

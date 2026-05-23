@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 
 export type Doctor = {
   id: string;
@@ -18,16 +18,18 @@ export type Doctor = {
 };
 
 export async function fetchDoctors(specialty?: string) {
-  const { data } = await apiClient.get<{ doctors: Doctor[] }>("/doctors", {
+  const res = await apiClient.get("/doctors", {
     params: specialty ? { specialty } : {},
   });
+  const data = extractResponseData<{ doctors: Doctor[] }>(res);
   return data.doctors;
 }
 
 export async function fetchDoctorSlots(doctorId: string, date: string) {
-  const { data } = await apiClient.get<{ slots: string[] }>(`/doctors/${doctorId}/slots`, {
+  const res = await apiClient.get(`/doctors/${doctorId}/slots`, {
     params: { date },
   });
+  const data = extractResponseData<{ slots: string[] }>(res);
   return data.slots;
 }
 
@@ -39,16 +41,13 @@ export type DoctorAvailability = {
 };
 
 export async function fetchMyAvailability() {
-  const { data } = await apiClient.get<{ availability: DoctorAvailability }>(
-    "/doctors/me/availability",
-  );
+  const res = await apiClient.get("/doctors/me/availability");
+  const data = extractResponseData<{ availability: DoctorAvailability }>(res);
   return data.availability;
 }
 
 export async function updateMyAvailability(availability: Partial<DoctorAvailability>) {
-  const { data } = await apiClient.put<{ availability: DoctorAvailability }>(
-    "/doctors/me/availability",
-    availability,
-  );
+  const res = await apiClient.put("/doctors/me/availability", availability);
+  const data = extractResponseData<{ availability: DoctorAvailability }>(res);
   return data.availability;
 }

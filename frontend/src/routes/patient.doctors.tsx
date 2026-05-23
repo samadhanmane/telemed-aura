@@ -29,6 +29,11 @@ import { fetchSpecialties } from "@/lib/api/auth";
 import { useBookAppointment } from "@/lib/api/hooks/use-appointments";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/client";
+import {
+  DoctorCardSkeleton,
+  EmptyList,
+  ErrorList,
+} from "@/components/common/ListStates";
 import { getTodayDateString } from "@/lib/appointment-slots";
 
 export const Route = createFileRoute("/patient/doctors")({
@@ -59,7 +64,12 @@ function DoctorsPage() {
     queryFn: fetchSpecialties,
   });
 
-  const { data: doctors = [], isLoading } = useQuery({
+  const {
+    data: doctors = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["doctors", category],
     queryFn: () => fetchDoctors(category === "all" ? undefined : category),
   });
@@ -94,7 +104,14 @@ function DoctorsPage() {
   }, [doctors, search, langFilter, minRating]);
 
   const confirmBook = async () => {
-    if (!booking || !time) return;
+    if (!booking) {
+      toast.error("Please select a doctor");
+      return;
+    }
+    if (!time) {
+      toast.error("Please select a time slot");
+      return;
+    }
     try {
       await book.mutateAsync({
         doctorId: booking.id,
@@ -102,7 +119,7 @@ function DoctorsPage() {
         time,
         specialty: booking.specialty,
       });
-      toast.success("Video consultation booked! Check email for confirmation.");
+      toast.success("Appointment booked successfully");
       setBooking(null);
       setTime("");
     } catch (err) {
@@ -175,8 +192,36 @@ function DoctorsPage() {
           </div>
         </Card>
 
-        {isLoading && <p className="mt-6 text-sm text-muted-foreground">Loading doctors…</p>}
+        {isLoading && (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <DoctorCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
 
+        {isError && !isLoading && (
+          <ErrorList
+            className="mt-6"
+            title="Unable to load doctors"
+            description="Network error. Please check your internet connection."
+            onRetry={() => void refetch()}
+          />
+        )}
+
+        {!isLoading && !isError && filtered.length === 0 && (
+          <EmptyList
+            className="mt-6"
+            title={
+              doctors.length === 0
+                ? "No doctors available"
+                : "No doctors found for selected specialty"
+            }
+            description="Try another specialty or check back later."
+          />
+        )}
+
+        {!isLoading && !isError && filtered.length > 0 && (
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((d) => (
             <Card key={d.id} className="rounded-2xl p-5 shadow-soft transition hover:shadow-elevated">
@@ -214,6 +259,7 @@ function DoctorsPage() {
             </Card>
           ))}
         </div>
+        )}
       </div>
 
       <Dialog open={!!profile} onOpenChange={() => setProfile(null)}>

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import * as doctorsController from "./doctors.controller.js";
 import { requireAuth, requireRole } from "../../shared/middleware/auth.middleware.js";
+import { validate } from "../../shared/middleware/validate.middleware.js";
+import { slotsQuerySchema } from "../../shared/validations/clinical.schemas.js";
 
 export const doctorsRoutes = Router();
 
@@ -19,4 +21,4 @@ doctorsRoutes.put(
   doctorsController.updateMyAvailability,
 );
 
-doctorsRoutes.get("/:id/slots", doctorsController.slots);
+doctorsRoutes.get("/:id/slots", validate(slotsQuerySchema, "query"), doctorsController.slots);

@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import mongoSanitize from "express-mongo-sanitize";
 import { apiRouter } from "./api/routes/index.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
 import { getDatabaseStatus } from "./database/connection.js";
 import { corsOriginCheck } from "./config/frontend-origins.js";
+import { apiRateLimiter } from "./shared/middleware/rate-limit.middleware.js";
 
 export function createApp() {
   const app = express();
@@ -15,7 +17,9 @@ export function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json());
+  app.use(express.json({ limit: "2mb" }));
+  app.use(mongoSanitize({ replaceWith: "_" }));
+  app.use("/api/v1", apiRateLimiter);
 
   app.get("/health", (_req, res) => {
     const db = getDatabaseStatus();

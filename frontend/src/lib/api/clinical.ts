@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import type { ApiAppointment } from "./appointments";
 
 export type ClinicalNote = {
@@ -167,18 +167,16 @@ export type PatientContext = {
 };
 
 export async function fetchPatientContext(patientId: string) {
-  const { data } = await apiClient.get<PatientContext>(`/clinical/patients/${patientId}/context`);
-  return data;
+  const res = await apiClient.get(`/clinical/patients/${patientId}/context`);
+  return extractResponseData<PatientContext>(res);
 }
 
 export async function saveClinicalNote(
   patientId: string,
   body: { content: string; appointmentId?: string },
 ) {
-  const { data } = await apiClient.put<{ note: ClinicalNote }>(
-    `/clinical/patients/${patientId}/notes`,
-    body,
-  );
+  const res = await apiClient.put(`/clinical/patients/${patientId}/notes`, body);
+  const data = extractResponseData<{ note: ClinicalNote }>(res);
   return data.note;
 }
 
@@ -190,10 +188,8 @@ export async function createConsultPrescription(
     appointmentId?: string;
   },
 ) {
-  const { data } = await apiClient.post<{ prescription: ClinicalPrescription }>(
-    `/clinical/patients/${patientId}/prescriptions`,
-    body,
-  );
+  const res = await apiClient.post(`/clinical/patients/${patientId}/prescriptions`, body);
+  const data = extractResponseData<{ prescription: ClinicalPrescription }>(res);
   return data.prescription;
 }
 
@@ -205,19 +201,20 @@ export async function scheduleFollowUp(body: {
   /** Current video consult — notifies patient in call and books only free slots */
   sourceAppointmentId?: string;
 }) {
-  const { data } = await apiClient.post<{ appointment: ApiAppointment }>("/clinical/follow-up", body);
+  const res = await apiClient.post("/clinical/follow-up", body);
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
   return data.appointment;
 }
 
 export async function fetchMyReports() {
-  const { data } = await apiClient.get<{ reports: ClinicalReport[] }>("/clinical/reports");
+  const res = await apiClient.get("/clinical/reports");
+  const data = extractResponseData<{ reports: ClinicalReport[] }>(res);
   return data.reports;
 }
 
 export async function fetchMyPrescriptions() {
-  const { data } = await apiClient.get<{ prescriptions: ClinicalPrescription[] }>(
-    "/clinical/prescriptions",
-  );
+  const res = await apiClient.get("/clinical/prescriptions");
+  const data = extractResponseData<{ prescriptions: ClinicalPrescription[] }>(res);
   return data.prescriptions;
 }
 
@@ -226,7 +223,8 @@ export async function uploadReport(body: {
   type: "PDF" | "PNG" | "JPG";
   category: string;
 }) {
-  const { data } = await apiClient.post<{ report: ClinicalReport }>("/clinical/reports", body);
+  const res = await apiClient.post("/clinical/reports", body);
+  const data = extractResponseData<{ report: ClinicalReport }>(res);
   return data.report;
 }
 
@@ -235,21 +233,22 @@ export async function uploadReportFile(file: File, meta: { name: string; categor
   form.append("file", file);
   form.append("name", meta.name);
   form.append("category", meta.category);
-  const { data } = await apiClient.post<{
+  const res = await apiClient.post("/clinical/reports", form);
+  return extractResponseData<{
     report: ClinicalReport;
     extractionMethod?: string;
     pageCount?: number;
     scanSummary?: ReportScanSummary;
     chunkIndexed?: number;
     extractedTextPreview?: string;
-  }>("/clinical/reports", form);
-  return data;
+  }>(res);
 }
 
 export async function fetchDoctorReports() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/clinical/doctor/reports");
+  const data = extractResponseData<{
     reports: (ClinicalReport & { patientName?: string })[];
-  }>("/clinical/doctor/reports");
+  }>(res);
   return data.reports;
 }
 
@@ -261,21 +260,21 @@ export async function reviewMedicalReport(
     confirmedFlags?: string[];
   },
 ) {
-  const { data } = await apiClient.patch<{ report: ClinicalReport }>(
-    `/clinical/reports/${reportId}/review`,
-    body,
-  );
+  const res = await apiClient.patch(`/clinical/reports/${reportId}/review`, body);
+  const data = extractResponseData<{ report: ClinicalReport }>(res);
   return data.report;
 }
 
 export async function fetchDoctorPrescriptions() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/clinical/doctor/prescriptions");
+  const data = extractResponseData<{
     prescriptions: (ClinicalPrescription & { patientName?: string })[];
-  }>("/clinical/doctor/prescriptions");
+  }>(res);
   return data.prescriptions;
 }
 
 export async function fetchAppointment(id: string) {
-  const { data } = await apiClient.get<{ appointment: ApiAppointment }>(`/appointments/${id}`);
+  const res = await apiClient.get(`/appointments/${id}`);
+  const data = extractResponseData<{ appointment: ApiAppointment }>(res);
   return data.appointment;
 }

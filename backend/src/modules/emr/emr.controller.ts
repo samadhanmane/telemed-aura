@@ -1,104 +1,66 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../../shared/middleware/auth.middleware.js";
 import * as emrService from "./emr.service.js";
+import { asyncHandler } from "../../shared/utils/async-handler.js";
+import { sendSuccess } from "../../shared/utils/response.js";
 
-export async function getMyEmr(req: AuthRequest, res: Response) {
-  try {
-    const data = await emrService.getPatientEmr(req.user!.userId);
-    return res.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to load EMR";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const getMyEmr = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const data = await emrService.getPatientEmr(req.user!.userId);
+  return sendSuccess(res, "EMR loaded", data);
+});
 
-export async function generateMySnapshot(req: AuthRequest, res: Response) {
-  try {
-    const snap = await emrService.generateEmrSnapshot(
-      req.user!.userId,
-      "patient",
-      req.user!.userId,
-      "Patient-requested snapshot",
-    );
-    return res.status(201).json({ snapshot: snap });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to generate snapshot";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const generateMySnapshot = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const snap = await emrService.generateEmrSnapshot(
+    req.user!.userId,
+    "patient",
+    req.user!.userId,
+    "Patient-requested snapshot",
+  );
+  return sendSuccess(res, "EMR snapshot generated", { snapshot: snap }, 201);
+});
 
-export async function updateMyProfile(req: AuthRequest, res: Response) {
-  try {
-    const profile = await emrService.updatePatientHealthProfile(req.user!.userId, req.body);
-    return res.json({ profile });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Update failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const updateMyProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profile = await emrService.updatePatientHealthProfile(req.user!.userId, req.body);
+  return sendSuccess(res, "Health profile updated", { profile });
+});
 
-export async function recordMyVitals(req: AuthRequest, res: Response) {
-  try {
-    const vital = await emrService.recordVitals(req.user!.userId, {
-      source: "manual",
-      ...req.body,
-    });
-    return res.status(201).json({ vital });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to save vitals";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const recordMyVitals = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const vital = await emrService.recordVitals(req.user!.userId, {
+    source: "manual",
+    ...req.body,
+  });
+  return sendSuccess(res, "Vitals recorded", { vital }, 201);
+});
 
-export async function getPatientEmrForDoctor(req: AuthRequest, res: Response) {
-  try {
-    const data = await emrService.getDoctorPatientEmr(
-      req.user!.userId,
-      String(req.params.patientId),
-    );
-    return res.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "EMR not available";
-    return res.status(403).json({ error: msg });
-  }
-}
+export const getPatientEmrForDoctor = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const data = await emrService.getDoctorPatientEmr(
+    req.user!.userId,
+    String(req.params.patientId),
+  );
+  return sendSuccess(res, "Patient EMR loaded", data);
+});
 
-export async function generatePatientSnapshot(req: AuthRequest, res: Response) {
-  try {
-    await emrService.assertDoctorCanViewEmr(req.user!.userId, String(req.params.patientId));
-    const snap = await emrService.generateEmrSnapshot(
-      String(req.params.patientId),
-      "doctor",
-      req.user!.userId,
-      "Doctor-requested snapshot",
-    );
-    return res.status(201).json({ snapshot: snap });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const generatePatientSnapshot = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await emrService.assertDoctorCanViewEmr(req.user!.userId, String(req.params.patientId));
+  const snap = await emrService.generateEmrSnapshot(
+    String(req.params.patientId),
+    "doctor",
+    req.user!.userId,
+    "Doctor-requested snapshot",
+  );
+  return sendSuccess(res, "EMR snapshot generated", { snapshot: snap }, 201);
+});
 
-export async function listDoctorPatientsEmr(req: AuthRequest, res: Response) {
-  try {
-    const patients = await emrService.listDoctorPatientsEmr(req.user!.userId);
-    return res.json({ patients });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const listDoctorPatientsEmr = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const patients = await emrService.listDoctorPatientsEmr(req.user!.userId);
+  return sendSuccess(res, "Patients loaded", { patients });
+});
 
-export async function saveConsultationConclusion(req: AuthRequest, res: Response) {
-  try {
-    const record = await emrService.finalizeConsultationEmr(
-      String(req.params.appointmentId),
-      req.user!.userId,
-      req.body,
-    );
-    return res.status(201).json({ record });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to save consultation record";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const saveConsultationConclusion = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const record = await emrService.finalizeConsultationEmr(
+    String(req.params.appointmentId),
+    req.user!.userId,
+    req.body,
+  );
+  return sendSuccess(res, "Consultation record saved", { record }, 201);
+});

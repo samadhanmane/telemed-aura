@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import { DEFAULT_SPECIALTIES } from "@/lib/specialties";
 
 export type AuthUser = {
@@ -23,42 +23,42 @@ export type AuthUser = {
 export type Specialty = { id: string; label: string };
 
 export async function login(email: string, password: string) {
-  const { data } = await apiClient.post<{ user: AuthUser; token: string }>("/auth/login", {
-    email,
-    password,
-  });
-  return data;
+  const res = await apiClient.post("/auth/login", { email, password });
+  return extractResponseData<{ user: AuthUser; token: string }>(res);
 }
 
 export async function register(payload: Record<string, unknown>) {
-  const { data } = await apiClient.post<{ user: AuthUser; token: string }>("/auth/register", payload);
-  return data;
+  const res = await apiClient.post("/auth/register", payload);
+  return extractResponseData<{ user: AuthUser; token: string }>(res);
 }
 
 export async function registerDoctor(form: FormData) {
-  const { data } = await apiClient.post<{
+  const res = await apiClient.post("/auth/register/doctor", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return extractResponseData<{
     pending: boolean;
     email: string;
     message: string;
-  }>("/auth/register/doctor", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return data;
+  }>(res);
 }
 
 export async function fetchMe() {
-  const { data } = await apiClient.get<{ user: AuthUser }>("/auth/me");
+  const res = await apiClient.get("/auth/me");
+  const data = extractResponseData<{ user: AuthUser }>(res);
   return data.user;
 }
 
 export async function updateAuthProfile(body: { name?: string; phone?: string }) {
-  const { data } = await apiClient.patch<{ user: AuthUser }>("/auth/me/profile", body);
+  const res = await apiClient.patch("/auth/me/profile", body);
+  const data = extractResponseData<{ user: AuthUser }>(res);
   return data.user;
 }
 
 export async function fetchSpecialties(): Promise<Specialty[]> {
   try {
-    const { data } = await apiClient.get<{ specialties: Specialty[] }>("/auth/specialties");
+    const res = await apiClient.get("/auth/specialties");
+    const data = extractResponseData<{ specialties: Specialty[] }>(res);
     if (data.specialties?.length) return data.specialties;
   } catch {
     /* API down or misconfigured VITE_API_URL — use bundled list for registration UI */
@@ -67,10 +67,8 @@ export async function fetchSpecialties(): Promise<Specialty[]> {
 }
 
 export async function requestForgotPasswordOtp(email: string) {
-  const { data } = await apiClient.post<{ message: string }>("/auth/forgot-password/request", {
-    email,
-  });
-  return data;
+  const res = await apiClient.post("/auth/forgot-password/request", { email });
+  return extractResponseData<{ message: string }>(res);
 }
 
 export async function resetPasswordWithOtp(body: {
@@ -78,6 +76,6 @@ export async function resetPasswordWithOtp(body: {
   otp: string;
   newPassword: string;
 }) {
-  const { data } = await apiClient.post<{ message: string }>("/auth/forgot-password/reset", body);
-  return data;
+  const res = await apiClient.post("/auth/forgot-password/reset", body);
+  return extractResponseData<{ message: string }>(res);
 }

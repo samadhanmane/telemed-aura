@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 
 export type SymptomScanResult = {
   id: string;
@@ -34,12 +34,14 @@ export async function runSymptomScan(body: {
     oxygenLevel?: number;
   };
 }) {
-  const { data } = await apiClient.post<{ result: SymptomScanResult }>("/ai/symptom-scan", body);
+  const res = await apiClient.post("/ai/symptom-scan", body);
+  const data = extractResponseData<{ result: SymptomScanResult }>(res);
   return data.result;
 }
 
 export async function fetchHealthSummary() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/ai/health-summary");
+  const data = extractResponseData<{
     summary: {
       healthScore: number;
       computedRisk: number;
@@ -50,18 +52,19 @@ export async function fetchHealthSummary() {
       reportsOnFile: number;
       lastTriagePriority: number | null;
     };
-  }>("/ai/health-summary");
+  }>(res);
   return data.summary;
 }
 
 export async function runPrescriptionOcr(text: string) {
-  const { data } = await apiClient.post<{
+  const res = await apiClient.post("/ai/prescription-ocr", { text });
+  const data = extractResponseData<{
     result: {
       text: string;
       confidence: number;
       medicines: { name: string; dosage: string; frequency: string; duration: string }[];
     };
-  }>("/ai/prescription-ocr", { text });
+  }>(res);
   return data.result;
 }
 
@@ -77,15 +80,14 @@ export type PrescriptionOcrResult = {
 export async function runPrescriptionOcrFile(file: File) {
   const form = new FormData();
   form.append("file", file);
-  const { data } = await apiClient.post<{ result: PrescriptionOcrResult }>(
-    "/ai/prescription-ocr/file",
-    form,
-  );
+  const res = await apiClient.post("/ai/prescription-ocr/file", form);
+  const data = extractResponseData<{ result: PrescriptionOcrResult }>(res);
   return data.result;
 }
 
 export async function fetchPrescriptionUploads() {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get("/ai/prescription-uploads");
+  const data = extractResponseData<{
     uploads: {
       id: string;
       originalName: string;
@@ -93,7 +95,7 @@ export async function fetchPrescriptionUploads() {
       medicines: PrescriptionOcrResult["medicines"];
       createdAt: string;
     }[];
-  }>("/ai/prescription-uploads");
+  }>(res);
   return data.uploads;
 }
 
@@ -110,7 +112,8 @@ export async function askDocumentChat(body: {
   reportIds?: string[];
   documentIds?: string[];
 }) {
-  const { data } = await apiClient.post<{ result: DocumentChatResult }>("/ai/document-chat", body);
+  const res = await apiClient.post("/ai/document-chat", body);
+  const data = extractResponseData<{ result: DocumentChatResult }>(res);
   return data.result;
 }
 
@@ -122,6 +125,7 @@ export async function analyzeRiskVitals(vitals: {
   sugarLevel?: number;
   oxygenLevel?: number;
 }) {
-  const { data } = await apiClient.post<{ result: Record<string, unknown> }>("/ai/risk-vitals", vitals);
+  const res = await apiClient.post("/ai/risk-vitals", vitals);
+  const data = extractResponseData<{ result: Record<string, unknown> }>(res);
   return data.result;
 }

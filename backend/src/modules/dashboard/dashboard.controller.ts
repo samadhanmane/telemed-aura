@@ -1,96 +1,83 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../../shared/middleware/auth.middleware.js";
 import * as dashboardService from "./dashboard.service.js";
+import { asyncHandler } from "../../shared/utils/async-handler.js";
+import { sendSuccess } from "../../shared/utils/response.js";
 
-export async function patientHome(req: AuthRequest, res: Response) {
+export const patientHome = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await dashboardService.getPatientDashboard(req.user!.userId);
-  return res.json(data);
-}
+  return sendSuccess(res, "Dashboard loaded", data);
+});
 
-export async function patientTimeline(req: AuthRequest, res: Response) {
+export const patientTimeline = asyncHandler(async (req: AuthRequest, res: Response) => {
   const timeline = await dashboardService.getPatientTimeline(req.user!.userId);
-  return res.json({ timeline });
-}
+  return sendSuccess(res, "Timeline loaded", { timeline });
+});
 
-export async function patientAnalytics(req: AuthRequest, res: Response) {
+export const patientAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const analytics = await dashboardService.getPatientAnalytics(req.user!.userId);
-  return res.json({ analytics });
-}
+  return sendSuccess(res, "Analytics loaded", { analytics });
+});
 
-export async function listDoctorPatients(req: AuthRequest, res: Response) {
+export const listDoctorPatients = asyncHandler(async (req: AuthRequest, res: Response) => {
   const patients = await dashboardService.listDoctorPatients(req.user!.userId);
-  return res.json({ patients });
-}
+  return sendSuccess(res, "Patients loaded", { patients });
+});
 
-export async function doctorHome(req: AuthRequest, res: Response) {
+export const doctorHome = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await dashboardService.getDoctorDashboard(req.user!.userId);
-  return res.json(data);
-}
+  return sendSuccess(res, "Dashboard loaded", data);
+});
 
-export async function doctorPatient(req: AuthRequest, res: Response) {
-  try {
-    const data = await dashboardService.getDoctorPatientDetail(
-      req.user!.userId,
-      String(req.params.patientId),
-    );
-    return res.json(data);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Not found";
-    return res.status(404).json({ error: msg });
-  }
-}
+export const doctorPatient = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const data = await dashboardService.getDoctorPatientDetail(
+    req.user!.userId,
+    String(req.params.patientId),
+  );
+  return sendSuccess(res, "Patient loaded", data);
+});
 
-export async function doctorAnalytics(req: AuthRequest, res: Response) {
+export const doctorAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await dashboardService.getDoctorAnalytics(req.user!.userId);
-  return res.json({ analytics: data });
-}
+  return sendSuccess(res, "Analytics loaded", { analytics: data });
+});
 
-export async function adminHome(req: AuthRequest, res: Response) {
+export const adminHome = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await dashboardService.getAdminDashboard();
-  return res.json(data);
-}
+  return sendSuccess(res, "Admin dashboard loaded", data);
+});
 
-export async function adminUsers(req: AuthRequest, res: Response) {
+export const adminUsers = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const users = await dashboardService.listAdminUsers();
-  return res.json({ users });
-}
+  return sendSuccess(res, "Users loaded", { users });
+});
 
-export async function adminDoctors(req: AuthRequest, res: Response) {
+export const adminDoctors = asyncHandler(async (req: AuthRequest, res: Response) => {
   const status = req.query.status as "pending" | "approved" | "rejected" | "all" | undefined;
   const doctors = await dashboardService.listAdminDoctors(status ?? "all");
-  return res.json({ doctors });
-}
+  return sendSuccess(res, "Doctors loaded", { doctors });
+});
 
-export async function approveDoctor(req: AuthRequest, res: Response) {
-  try {
-    const result = await dashboardService.approveDoctorRegistration(String(req.params.doctorId));
-    return res.json(result);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Approval failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const approveDoctor = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await dashboardService.approveDoctorRegistration(String(req.params.doctorId));
+  return sendSuccess(res, "Doctor approved successfully", result);
+});
 
-export async function rejectDoctor(req: AuthRequest, res: Response) {
-  try {
-    const { reason } = req.body;
-    const result = await dashboardService.rejectDoctorRegistration(
-      String(req.params.doctorId),
-      reason,
-    );
-    return res.json(result);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Rejection failed";
-    return res.status(400).json({ error: msg });
-  }
-}
+export const rejectDoctor = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { reason } = req.body;
+  const result = await dashboardService.rejectDoctorRegistration(
+    String(req.params.doctorId),
+    reason,
+  );
+  return sendSuccess(res, "Doctor registration rejected", result);
+});
 
-export async function adminPatients(req: AuthRequest, res: Response) {
+export const adminPatients = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const patients = await dashboardService.listAdminPatients();
-  return res.json({ patients });
-}
+  return sendSuccess(res, "Patients loaded", { patients });
+});
 
-export async function adminAiMonitoring(req: AuthRequest, res: Response) {
+export const adminAiMonitoring = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const data = await dashboardService.getAdminAiMonitoring();
-  return res.json(data);
-}
+  return sendSuccess(res, "AI monitoring loaded", data);
+});

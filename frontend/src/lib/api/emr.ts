@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import type { ReportAiAnalysis, ReportScanSummary } from "./clinical";
 
 export type EmrProfile = {
@@ -105,14 +105,16 @@ export type DoctorPatientEmrRow = {
 };
 
 export async function fetchMyEmr() {
-  const { data } = await apiClient.get<{ emr: PatientEmrPayload; latestSnapshot: { id: string; label: string; createdAt: string } | null }>(
-    "/emr/me",
-  );
-  return data;
+  const res = await apiClient.get("/emr/me");
+  return extractResponseData<{
+    emr: PatientEmrPayload;
+    latestSnapshot: { id: string; label: string; createdAt: string } | null;
+  }>(res);
 }
 
 export async function generateMyEmrSnapshot() {
-  const { data } = await apiClient.post<{ snapshot: { id: string; createdAt: string } }>("/emr/me/snapshot");
+  const res = await apiClient.post("/emr/me/snapshot");
+  const data = extractResponseData<{ snapshot: { id: string; createdAt: string } }>(res);
   return data.snapshot;
 }
 
@@ -122,40 +124,42 @@ export async function recordMyVitals(vitals: {
   sugarLevel?: number;
   oxygenLevel?: number;
 }) {
-  const { data } = await apiClient.post("/emr/me/vitals", vitals);
-  return data;
+  const res = await apiClient.post("/emr/me/vitals", vitals);
+  return extractResponseData(res);
 }
 
 export async function updateMyHealthProfile(
   body: Partial<EmrProfile> & { name?: string; location?: string },
 ) {
-  const { data } = await apiClient.patch<{ profile: EmrProfile }>("/emr/me/profile", body);
+  const res = await apiClient.patch("/emr/me/profile", body);
+  const data = extractResponseData<{ profile: EmrProfile }>(res);
   return data.profile;
 }
 
 export async function fetchDoctorPatientsEmr() {
-  const { data } = await apiClient.get<{ patients: DoctorPatientEmrRow[] }>("/emr/doctor/patients");
+  const res = await apiClient.get("/emr/doctor/patients");
+  const data = extractResponseData<{ patients: DoctorPatientEmrRow[] }>(res);
   return data.patients;
 }
 
 export async function fetchPatientEmrForDoctor(patientId: string) {
-  const { data } = await apiClient.get<{
+  const res = await apiClient.get(`/emr/patients/${patientId}`);
+  return extractResponseData<{
     emr: PatientEmrPayload;
     latestSnapshot: { id: string; label: string; createdAt: string } | null;
     doctorClinicalNote: { content: string; updatedAt: string | null };
-  }>(`/emr/patients/${patientId}`);
-  return data;
+  }>(res);
 }
 
 export async function generatePatientEmrSnapshot(patientId: string) {
-  const { data } = await apiClient.post(`/emr/patients/${patientId}/snapshot`);
-  return data;
+  const res = await apiClient.post(`/emr/patients/${patientId}/snapshot`);
+  return extractResponseData(res);
 }
 
 export async function completeConsultationEmr(
   appointmentId: string,
   body: { conclusion?: string; vitals?: Record<string, number> },
 ) {
-  const { data } = await apiClient.post(`/emr/consultations/${appointmentId}/complete`, body);
-  return data;
+  const res = await apiClient.post(`/emr/consultations/${appointmentId}/complete`, body);
+  return extractResponseData(res);
 }

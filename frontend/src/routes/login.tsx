@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { login } from "@/lib/api/auth";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/api/client";
+import { loginSchema } from "@/lib/validation/forms";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDashboardPath, redirectIfAuthenticated } from "@/lib/auth/guards";
 import { resolveRedirectAfterLogin } from "@/lib/auth/require-login";
@@ -29,10 +30,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const schema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "At least 6 characters"),
-});
+const schema = loginSchema;
 
 function LoginPage() {
   const { t } = useTranslation();
@@ -49,10 +47,12 @@ function LoginPage() {
     try {
       const { user, token } = await login(data.email, data.password);
       setSession(user, token);
-      toast.success(t("auth.welcomeToast", { name: user.name.split(" ")[0] }));
+      toast.success("Login successful", {
+        description: t("auth.welcomeToast", { name: user.name.split(" ")[0] }),
+      });
       navigate({ to: getDashboardPath(user.role as UserRole) });
     } catch (err) {
-      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      const code = getApiErrorCode(err);
       if (code === "REGISTRATION_PENDING") {
         toast.message("Application under review", {
           description: getApiErrorMessage(err, "Admin has not approved your doctor account yet."),

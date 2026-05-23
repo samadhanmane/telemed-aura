@@ -25,6 +25,7 @@ import {
 import { useAppointments, useUpdateAppointmentStatus } from "@/lib/api/hooks/use-appointments";
 import type { ApiAppointment } from "@/lib/api/appointments";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { isAppointmentInPast } from "@/lib/appointment-slots";
 import { DoctorTriagePanel } from "@/components/doctor/DoctorTriagePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,9 +42,15 @@ function DoctorAppointments() {
   const handleStatus = async (id: string, status: "confirmed" | "cancelled" | "in_progress") => {
     try {
       await updateStatus.mutateAsync({ id, status });
-      toast.success(`Appointment ${status}`);
-    } catch {
-      toast.error("Update failed");
+      const message =
+        status === "confirmed"
+          ? "Appointment confirmed successfully"
+          : status === "cancelled"
+            ? "Appointment cancelled"
+            : "Appointment updated";
+      toast.success(message);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Unable to update appointment status"));
     }
   };
 

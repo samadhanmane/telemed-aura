@@ -2,7 +2,16 @@ import { Router } from "express";
 import * as clinicalController from "./clinical.controller.js";
 import { requireAuth, requireRole } from "../../shared/middleware/auth.middleware.js";
 import { uploadReport } from "../../shared/middleware/upload.middleware.js";
-
+import { validate } from "../../shared/middleware/validate.middleware.js";
+import {
+  clinicalNoteSchema,
+  prescriptionCreateSchema,
+  followUpSchema,
+  reportReviewSchema,
+  urgentBookSchema,
+  criticalBookSchema,
+  rescheduleSchema,
+} from "../../shared/validations/clinical.schemas.js";
 export const clinicalRoutes = Router();
 
 clinicalRoutes.use(requireAuth);
@@ -15,16 +24,19 @@ clinicalRoutes.get(
 clinicalRoutes.put(
   "/patients/:patientId/notes",
   requireRole("doctor"),
+  validate(clinicalNoteSchema),
   clinicalController.updateNote,
 );
 clinicalRoutes.post(
   "/patients/:patientId/prescriptions",
   requireRole("doctor"),
+  validate(prescriptionCreateSchema),
   clinicalController.createPrescription,
 );
 clinicalRoutes.post(
   "/follow-up",
   requireRole("doctor"),
+  validate(followUpSchema),
   clinicalController.scheduleFollowUp,
 );
 
@@ -39,10 +51,16 @@ clinicalRoutes.get(
   requireRole("doctor"),
   clinicalController.getPatientSeverity,
 );
-clinicalRoutes.post("/doctor/urgent-book", requireRole("doctor"), clinicalController.urgentBook);
+clinicalRoutes.post(
+  "/doctor/urgent-book",
+  requireRole("doctor"),
+  validate(urgentBookSchema),
+  clinicalController.urgentBook,
+);
 clinicalRoutes.post(
   "/doctor/accept-critical",
   requireRole("doctor"),
+  validate(urgentBookSchema),
   clinicalController.acceptCriticalPatient,
 );
 clinicalRoutes.get(
@@ -58,11 +76,13 @@ clinicalRoutes.post(
 clinicalRoutes.post(
   "/patient/critical-book",
   requireRole("patient"),
+  validate(criticalBookSchema),
   clinicalController.patientCriticalBook,
 );
 clinicalRoutes.post(
   "/doctor/reschedule",
   requireRole("doctor"),
+  validate(rescheduleSchema),
   clinicalController.rescheduleBooking,
 );
 clinicalRoutes.get(
@@ -82,6 +102,7 @@ clinicalRoutes.get("/doctor/reports", requireRole("doctor"), clinicalController.
 clinicalRoutes.patch(
   "/reports/:reportId/review",
   requireRole("doctor"),
+  validate(reportReviewSchema),
   clinicalController.reviewReport,
 );
 clinicalRoutes.get(

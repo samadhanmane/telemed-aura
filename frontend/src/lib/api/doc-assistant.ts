@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 import type { ReportAiAnalysis, ReportScanSummary } from "./clinical";
 import type { PrescriptionOcrResult } from "./ai";
 import { askDocumentChat, MAX_REPORT_FILE_BYTES } from "./ai";
@@ -46,7 +46,8 @@ export type UploadDocumentResponse =
     };
 
 export async function fetchDocumentLibrary() {
-  const { data } = await apiClient.get<{ documents: LibraryDocument[] }>("/ai/documents");
+  const res = await apiClient.get("/ai/documents");
+  const data = extractResponseData<{ documents: LibraryDocument[] }>(res);
   return data.documents;
 }
 
@@ -59,8 +60,8 @@ export async function uploadDocument(
   form.append("documentType", opts.documentType);
   if (opts.name) form.append("name", opts.name);
   if (opts.category) form.append("category", opts.category);
-  const { data } = await apiClient.post<UploadDocumentResponse>("/ai/documents/upload", form);
-  return data;
+  const res = await apiClient.post("/ai/documents/upload", form);
+  return extractResponseData<UploadDocumentResponse>(res);
 }
 
 export const REPORT_CATEGORIES = [

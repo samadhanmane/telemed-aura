@@ -14,6 +14,7 @@ import { APP_NAME, APP_DESCRIPTION, APP_TAGLINE } from "@/lib/brand";
 import { useThemeStore } from "@/stores/theme-store";
 import { syncI18nLanguage } from "@/i18n";
 import { SessionBootstrap } from "@/components/auth/SessionBootstrap";
+import { Toaster } from "@/components/ui/sonner";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -135,6 +136,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SessionBootstrap />
       <Outlet />
+      <Toaster richColors closeButton position="top-right" />
     </QueryClientProvider>
   );
 }

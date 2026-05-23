@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { SpecialtyCategoryPicker } from "@/components/auth/SpecialtyCategoryPicker";
 import { toast } from "sonner";
 import { register as registerApi, registerDoctor, fetchSpecialties, type Specialty } from "@/lib/api/auth";
+import { patientRegisterSchema, doctorRegisterSchema } from "@/lib/validation/forms";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { showApiSuccess } from "@/lib/api/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDashboardPath, redirectIfAuthenticated } from "@/lib/auth/guards";
 import { resolveRedirectAfterLogin } from "@/lib/auth/require-login";
@@ -34,24 +37,8 @@ export const Route = createFileRoute("/register")({
 
 type SignupRole = Extract<UserRole, "patient" | "doctor">;
 
-const patientSchema = z.object({
-  name: z.string().min(2, "Enter your full name"),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "At least 6 characters"),
-  phone: z.string().optional(),
-  location: z.string().optional(),
-});
-
-const doctorSchema = z.object({
-  name: z.string().min(2, "Enter your full name"),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "At least 6 characters"),
-  phone: z.string().optional(),
-  specialty: z.string().min(1, "Select your specialty"),
-  licenseNumber: z.string().min(3, "Medical license is required"),
-  experienceYears: z.number().min(0, "Enter years of experience"),
-  bio: z.string().optional(),
-});
+const patientSchema = patientRegisterSchema;
+const doctorSchema = doctorRegisterSchema;
 
 function RegisterPage() {
   const { t } = useTranslation();
@@ -122,12 +109,12 @@ function RegisterPage() {
         location: data.location,
       });
       setSession(user, token);
-      toast.success(t("auth.welcomeNew", { name: user.name.split(" ")[0] }));
+      showApiSuccess("Registration completed successfully", t("auth.welcomeNew", { name: user.name.split(" ")[0] }));
       navigate({
         to: resolveRedirectAfterLogin(redirectTo, user.role as UserRole),
       });
     } catch (err: unknown) {
-      toast.error(getApiError(err));
+      toast.error(getApiErrorMessage(err, "Registration failed"));
     }
   });
 
@@ -150,9 +137,9 @@ function RegisterPage() {
 
       const result = await registerDoctor(form);
       setDoctorSubmitted(true);
-      toast.success(result.message);
+      showApiSuccess(result.message);
     } catch (err: unknown) {
-      toast.error(getApiError(err));
+      toast.error(getApiErrorMessage(err, "Registration failed"));
     }
   });
 
@@ -371,9 +358,3 @@ function SubmitButton({
   );
 }
 
-function getApiError(err: unknown): string {
-  if (err && typeof err === "object" && "response" in err) {
-    return (err as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Registration failed";
-  }
-  return "Registration failed";
-}

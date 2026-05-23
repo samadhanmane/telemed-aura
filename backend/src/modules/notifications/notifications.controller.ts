@@ -1,14 +1,17 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../../shared/middleware/auth.middleware.js";
 import { Notification } from "../../database/models/index.js";
+import { asyncHandler } from "../../shared/utils/async-handler.js";
+import { sendSuccess } from "../../shared/utils/response.js";
+import { notFound } from "../../shared/errors/app-error.js";
 
-export async function list(req: AuthRequest, res: Response) {
+export const list = asyncHandler(async (req: AuthRequest, res: Response) => {
   const notifications = await Notification.find({ userId: req.user!.userId })
     .sort({ createdAt: -1 })
     .limit(50)
     .lean();
 
-  return res.json({
+  return sendSuccess(res, "Notifications loaded", {
     notifications: notifications.map((n) => ({
       id: n._id.toString(),
       type: n.type,
@@ -19,20 +22,21 @@ export async function list(req: AuthRequest, res: Response) {
       createdAt: n.createdAt,
     })),
   });
-}
+});
 
-export async function markRead(req: AuthRequest, res: Response) {
-  await Notification.updateOne(
+export const markRead = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await Notification.updateOne(
     { _id: req.params.id, userId: req.user!.userId },
     { read: true },
   );
-  return res.json({ ok: true });
-}
+  if (result.matchedCount === 0) throw notFound("Notification not found");
+  return sendSuccess(res, "Notification marked as read", { ok: true });
+});
 
-export async function markAllRead(req: AuthRequest, res: Response) {
+export const markAllRead = asyncHandler(async (req: AuthRequest, res: Response) => {
   await Notification.updateMany({ userId: req.user!.userId }, { read: true });
-  return res.json({ ok: true });
-}
+  return sendSuccess(res, "All notifications marked as read", { ok: true });
+});
 
 function formatTimeAgo(date: Date) {
   const mins = Math.floor((Date.now() - date.getTime()) / 60000);

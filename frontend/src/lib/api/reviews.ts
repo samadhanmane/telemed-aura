@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, extractResponseData } from "./client";
 
 export type ConsultationReview = {
   id: string;
@@ -15,18 +15,19 @@ export async function submitConsultationReview(body: {
   rating: number;
   comment?: string;
 }) {
-  const { data } = await apiClient.post<{ review: ConsultationReview }>("/reviews", body);
+  const res = await apiClient.post("/reviews", body);
+  const data = extractResponseData<{ review: ConsultationReview }>(res);
   return data.review;
 }
 
 export async function fetchAppointmentReview(appointmentId: string) {
-  const { data } = await apiClient.get<{ review: ConsultationReview | null }>(
-    `/reviews/appointment/${appointmentId}`,
-  );
+  const res = await apiClient.get(`/reviews/appointment/${appointmentId}`);
+  const data = extractResponseData<{ review: ConsultationReview | null }>(res);
   return data.review;
 }
 
 export async function fetchMyReviews() {
-  const { data } = await apiClient.get<{ reviews: ConsultationReview[] }>("/reviews");
+  const res = await apiClient.get("/reviews");
+  const data = extractResponseData<{ reviews: ConsultationReview[] }>(res);
   return data.reviews;
 }
